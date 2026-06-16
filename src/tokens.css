@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  /* Palette */
+  --ink:        #18181B;
+  --ink-soft:   #52525B;
+  --ink-faint:  #A1A1AA;
+  --paper:      #FAFAF9;
+  --surface:    #F4F4F0;
+  --surface-2:  #ECEAE3;
+  --border:     #E4E2DA;
+  --fire:       #E8621A;
+  --fire-dim:   rgba(232,98,26,0.12);
+  --fire-glow:  rgba(232,98,26,0.08);
+  --night:      #18181B;
+
+  /* Type */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+
+  /* Radius */
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 24px;
+  --r-full: 9999px;
+
+  /* Shadow */
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+  --shadow-lg:  0 12px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.07), 0 0 1px rgba(0,0,0,0.06);
+
+  /* Nav */
+  --nav-h: 68px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { height: 100%; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+#root { height: 100%; }
+
+button { border: none; cursor: pointer; background: none; font-family: inherit; color: inherit; }
+ul, ol { list-style: none; }
+input, textarea, select { font-family: inherit; }
+img { display: block; max-width: 100%; }
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 0; height: 0; }
