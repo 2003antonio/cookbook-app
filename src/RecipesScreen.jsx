@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState} from "react";
 import { StarRating, RecipeDetail } from "./components.jsx";
 import { CATEGORY_OPTIONS, formatTime } from "./useRecipes";
 
