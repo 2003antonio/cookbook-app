@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { StarRating } from "./components.jsx";
 import { formatTime } from "./useRecipes";
 
@@ -71,7 +71,7 @@ function FavoritesCarousel({ favorites, onSelect }) {
             paddingLeft: 24,
             paddingRight: 24,
             transform: `translateX(calc(${-active * (cardW + gap)}px + ${dragOffset}px))`,
-            transition: isAnimating || dragOffset === 0 && !dragging.current ? "transform 0.32s cubic-bezier(0.4,0,0.2,1)" : "none",
+            transition: ((isAnimating || dragOffset) === (0 && !dragging.current)) ? "transform 0.32s cubic-bezier(0.4,0,0.2,1)" : "none",
             cursor: "grab",
             userSelect: "none",
           }}
