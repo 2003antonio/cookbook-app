@@ -7,6 +7,8 @@ function FavoritesCarousel({ favorites, onSelect }) {
   const [active, setActive] = useState(0);
   const trackRef = useRef(null);
   const startX = useRef(null);
+  const lastX = useRef(0);
+  const velocity = useRef(0);
   const dragging = useRef(false);
   const dragDelta = useRef(0);
   const [dragOffset, setDragOffset] = useState(0);
@@ -15,40 +17,59 @@ function FavoritesCarousel({ favorites, onSelect }) {
   const count = favorites.length;
   if (!count) return null;
 
+  const cardW = 280;
+  const gap = 16;
+
   const clamp = (n) => Math.max(0, Math.min(count - 1, n));
 
   const goTo = (idx) => {
     setActive(clamp(idx));
     setDragOffset(0);
     setIsAnimating(true);
-    setTimeout(() => setIsAnimating(false), 300);
+    setTimeout(() => setIsAnimating(false), 400);
   };
 
-  // Touch / mouse handlers
+  // ── Drag Handlers ─────────────────────────────────────
   const onDown = (e) => {
     startX.current = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
+    lastX.current = startX.current;
     dragging.current = true;
     dragDelta.current = 0;
+    velocity.current = 0;
   };
 
   const onMove = (e) => {
     if (!dragging.current) return;
+
     const x = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
+
+    velocity.current = x - lastX.current;
+    lastX.current = x;
+
     dragDelta.current = x - startX.current;
-    setDragOffset(dragDelta.current);
+
+    // optional: limit overdrag
+    const maxOffset = cardW * 0.4;
+    const bounded = Math.max(-maxOffset, Math.min(maxOffset, dragDelta.current));
+
+    setDragOffset(bounded);
   };
 
   const onUp = () => {
     if (!dragging.current) return;
     dragging.current = false;
-    const threshold = 60;
-    if (dragDelta.current < -threshold) goTo(active + 1);
-    else if (dragDelta.current > threshold) goTo(active - 1);
-    else setDragOffset(0);
-  };
 
-  const cardW = 280;
-  const gap = 16;
+    const move = dragDelta.current;
+    const v = velocity.current;
+    const threshold = cardW * 0.25;
+
+    let next = active;
+
+    if (move < -threshold || v < -5) next = active + 1;
+    else if (move > threshold || v > 5) next = active - 1;
+
+    goTo(next);
+  };
 
   return (
     <div>
@@ -63,21 +84,35 @@ function FavoritesCarousel({ favorites, onSelect }) {
       <div style={{ overflow: "hidden", margin: "0 -24px", padding: "4px 0 16px" }}>
         <div
           ref={trackRef}
-          onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
-          onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
+          onMouseDown={onDown}
+          onMouseMove={onMove}
+          onMouseUp={onUp}
+          onMouseLeave={onUp}
+          onTouchStart={onDown}
+          onTouchMove={onMove}
+          onTouchEnd={onUp}
           style={{
             display: "flex",
             gap,
             paddingLeft: 24,
             paddingRight: 24,
             transform: `translateX(calc(${-active * (cardW + gap)}px + ${dragOffset}px))`,
-            transition: ((isAnimating || dragOffset) === (0 && !dragging.current)) ? "transform 0.32s cubic-bezier(0.4,0,0.2,1)" : "none",
+            transition:
+              isAnimating || (!dragging.current && dragOffset === 0)
+                ? "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)"
+                : "none",
             cursor: "grab",
             userSelect: "none",
           }}
         >
           {favorites.map((r, i) => (
-            <FavoriteCard key={r.id} recipe={r} active={i === active} onSelect={onSelect} />
+            <FavoriteCard
+              key={r.id}
+              recipe={r}
+              active={i === active}
+              onSelect={onSelect}
+              dragDelta={dragDelta}
+            />
           ))}
         </div>
       </div>
@@ -85,57 +120,95 @@ function FavoritesCarousel({ favorites, onSelect }) {
       {/* Dots */}
       <div style={{ display: "flex", justifyContent: "center", gap: 6 }}>
         {favorites.map((_, i) => (
-          <button key={i} onClick={() => goTo(i)} style={{
-            width: i === active ? 20 : 6, height: 6, borderRadius: 999,
-            background: i === active ? "var(--fire)" : "var(--border)",
-            transition: "all 0.25s ease", padding: 0,
-          }} />
+          <button
+            key={i}
+            onClick={() => goTo(i)}
+            style={{
+              width: i === active ? 20 : 6,
+              height: 6,
+              borderRadius: 999,
+              background: i === active ? "var(--fire)" : "var(--border)",
+              transition: "all 0.25s ease",
+              padding: 0,
+            }}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function FavoriteCard({ recipe, active, onSelect }) {
+function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
   return (
     <div
-      onClick={() => onSelect(recipe)}
+      onClick={() => {
+        // prevent click if user was dragging
+        if (Math.abs(dragDelta.current) > 5) return;
+        onSelect(recipe);
+      }}
       style={{
-        minWidth: 280, width: 280, borderRadius: "var(--r-lg)",
-        background: recipe.color, cursor: "pointer",
+        minWidth: 280,
+        width: 280,
+        borderRadius: "var(--r-lg)",
+        background: recipe.color,
+        cursor: "pointer",
         boxShadow: active ? "var(--shadow-lg)" : "var(--shadow-sm)",
         transform: active ? "scale(1.02)" : "scale(0.96)",
         transition: "transform 0.3s ease, box-shadow 0.3s ease",
-        overflow: "hidden", flexShrink: 0,
+        overflow: "hidden",
+        flexShrink: 0,
       }}
     >
-      {/* Color block with content */}
       <div style={{ padding: "28px 22px 22px" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>
+        <div style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: "rgba(255,255,255,0.7)",
+          marginBottom: 8
+        }}>
           {recipe.category}
         </div>
+
         <h3 style={{
-          fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 700,
-          color: "white", lineHeight: 1.1, marginBottom: 12,
+          fontFamily: "var(--font-display)",
+          fontSize: 26,
+          fontWeight: 700,
+          color: "white",
+          lineHeight: 1.1,
+          marginBottom: 12,
           textShadow: "0 1px 6px rgba(0,0,0,0.2)",
-        }}>{recipe.name}</h3>
+        }}>
+          {recipe.name}
+        </h3>
+
         <StarRating rating={recipe.rating || 0} size="sm" />
       </div>
 
-      {/* Footer strip */}
       <div style={{
-        background: "rgba(0,0,0,0.18)", padding: "12px 22px",
-        display: "flex", justifyContent: "space-between", alignItems: "center",
+        background: "rgba(0,0,0,0.18)",
+        padding: "12px 22px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
       }}>
         <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>
           ⏱ {formatTime(recipe.prepTime, recipe.cookTime)}
         </span>
+
         <div style={{ display: "flex", gap: 5 }}>
           {(recipe.tags || []).slice(0, 2).map(t => (
             <span key={t} style={{
-              fontSize: 10.5, padding: "2px 8px", borderRadius: 999,
-              background: "rgba(255,255,255,0.2)", color: "white", fontWeight: 500,
-            }}>{t}</span>
+              fontSize: 10.5,
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.2)",
+              color: "white",
+              fontWeight: 500,
+            }}>
+              {t}
+            </span>
           ))}
         </div>
       </div>
