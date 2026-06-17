@@ -1,4 +1,4 @@
-import { useState} from "react";
+import { useState, useEffect } from "react";
 import { StarRating, RecipeDetail } from "./components.jsx";
 import { CATEGORY_OPTIONS, formatTime } from "./useRecipes";
 
@@ -27,14 +27,9 @@ function RecipeCard({ recipe, onSelect, active, onToggleFavorite }) {
               onToggleFavorite(recipe.id);
             }}
             style={{
-              position: "absolute",
-              top: 10,
-              right: 10,
-              fontSize: 16,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: recipe.favorite ? "red" : "white",
+              position: "absolute", top: 10, right: 10,
+              fontSize: 16, background: "none", border: "none",
+              cursor: "pointer", color: "red",
             }}
           >
             ♥
@@ -73,7 +68,6 @@ function RecipeCard({ recipe, onSelect, active, onToggleFavorite }) {
 function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAddToShopping }) {
   return (
     <>
-      {/* Scrim */}
       {recipe && (
         <div onClick={onClose} style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
@@ -82,7 +76,6 @@ function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAd
         }} />
       )}
 
-      {/* Sheet */}
       <div style={{
         position: "fixed", left: 0, right: 0, bottom: 0,
         height: "88vh", background: "white",
@@ -119,13 +112,25 @@ function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAd
 export default function RecipesScreen({
   recipes, onSelectRecipe, selectedRecipe, onCloseDetail,
   onEdit, onDelete, onToggleFavorite, onAddToShopping, onNewRecipe,
+  initialFilter = "All",
 }) {
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeCategory, setActiveCategory] = useState(initialFilter);
+
+  // Sync when navigating here from Home with a specific filter
+  useEffect(() => {
+    setActiveCategory(initialFilter);
+  }, [initialFilter]);
+
+  const favoritesCount = recipes.filter(r => r.favorite).length;
 
   const filtered = recipes.filter(r => {
-    const matchCat = activeCategory === "All" || r.category === activeCategory;
-    const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
+    const matchCat =
+      activeCategory === "All" ? true :
+      activeCategory === "Favorites" ? r.favorite :
+      r.category === activeCategory;
+    const matchSearch =
+      r.name.toLowerCase().includes(search.toLowerCase()) ||
       (r.tags || []).some(t => t.toLowerCase().includes(search.toLowerCase()));
     return matchCat && matchSearch;
   });
@@ -167,12 +172,11 @@ export default function RecipesScreen({
             />
           </div>
 
-          {/* Category pills */}
+          {/* Category pills — All, Favorites, then categories */}
           <div style={{ display: "flex", gap: 7, overflowX: "auto", paddingBottom: 14, WebkitOverflowScrolling: "touch" }}>
-            {["All", ...CATEGORY_OPTIONS.map(c => c.name)].map(cat => {
+            {/* All */}
+            {["All"].map(cat => {
               const isActive = activeCategory === cat;
-              const count = cat === "All" ? recipes.length : (counts[cat] || 0);
-              if (cat !== "All" && !counts[cat]) return null;
               return (
                 <button key={cat} onClick={() => setActiveCategory(cat)} style={{
                   whiteSpace: "nowrap", padding: "6px 14px",
@@ -182,7 +186,40 @@ export default function RecipesScreen({
                   border: isActive ? "none" : "1.5px solid var(--border)",
                   transition: "all 0.15s", flexShrink: 0,
                 }}>
-                  {cat} {count > 0 && <span style={{ opacity: 0.7, fontSize: 11 }}>({count})</span>}
+                  {cat} <span style={{ opacity: 0.7, fontSize: 11 }}>({recipes.length})</span>
+                </button>
+              );
+            })}
+
+            {/* Favorites pill — only shown if there are any */}
+            {favoritesCount > 0 && (
+              <button onClick={() => setActiveCategory("Favorites")} style={{
+                whiteSpace: "nowrap", padding: "6px 14px",
+                borderRadius: 999, fontSize: 13, fontWeight: 500,
+                background: activeCategory === "Favorites" ? "var(--fire)" : "var(--surface)",
+                color: activeCategory === "Favorites" ? "white" : "var(--ink-soft)",
+                border: activeCategory === "Favorites" ? "none" : "1.5px solid var(--border)",
+                transition: "all 0.15s", flexShrink: 0,
+              }}>
+                ♥ Favorites <span style={{ opacity: 0.7, fontSize: 11 }}>({favoritesCount})</span>
+              </button>
+            )}
+
+            {/* Per-category pills */}
+            {CATEGORY_OPTIONS.map(c => {
+              const count = counts[c.name] || 0;
+              if (!count) return null;
+              const isActive = activeCategory === c.name;
+              return (
+                <button key={c.name} onClick={() => setActiveCategory(c.name)} style={{
+                  whiteSpace: "nowrap", padding: "6px 14px",
+                  borderRadius: 999, fontSize: 13, fontWeight: 500,
+                  background: isActive ? "var(--fire)" : "var(--surface)",
+                  color: isActive ? "white" : "var(--ink-soft)",
+                  border: isActive ? "none" : "1.5px solid var(--border)",
+                  transition: "all 0.15s", flexShrink: 0,
+                }}>
+                  {c.name} <span style={{ opacity: 0.7, fontSize: 11 }}>({count})</span>
                 </button>
               );
             })}
@@ -198,7 +235,13 @@ export default function RecipesScreen({
               gap: 14,
             }}>
               {filtered.map(r => (
-                <RecipeCard key={r.id} recipe={r} onSelect={onSelectRecipe} active={selectedRecipe?.id === r.id} />
+                <RecipeCard
+                  key={r.id}
+                  recipe={r}
+                  onSelect={onSelectRecipe}
+                  active={selectedRecipe?.id === r.id}
+                  onToggleFavorite={onToggleFavorite}
+                />
               ))}
             </div>
           ) : (
@@ -219,7 +262,6 @@ export default function RecipesScreen({
         </div>
       </div>
 
-      {/* Detail sheet */}
       <DetailSheet
         recipe={selectedRecipe}
         onClose={onCloseDetail}

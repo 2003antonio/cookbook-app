@@ -29,7 +29,6 @@ function FavoritesCarousel({ favorites, onSelect }) {
     setTimeout(() => setIsAnimating(false), 400);
   };
 
-  // ── Drag Handlers ─────────────────────────────────────
   const onDown = (e) => {
     startX.current = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
     lastX.current = startX.current;
@@ -40,34 +39,24 @@ function FavoritesCarousel({ favorites, onSelect }) {
 
   const onMove = (e) => {
     if (!dragging.current) return;
-
     const x = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
-
     velocity.current = x - lastX.current;
     lastX.current = x;
-
     dragDelta.current = x - startX.current;
-
-    // optional: limit overdrag
     const maxOffset = cardW * 0.4;
     const bounded = Math.max(-maxOffset, Math.min(maxOffset, dragDelta.current));
-
     setDragOffset(bounded);
   };
 
   const onUp = () => {
     if (!dragging.current) return;
     dragging.current = false;
-
     const move = dragDelta.current;
     const v = velocity.current;
     const threshold = cardW * 0.25;
-
     let next = active;
-
     if (move < -threshold || v < -5) next = active + 1;
     else if (move > threshold || v > 5) next = active - 1;
-
     goTo(next);
   };
 
@@ -80,7 +69,6 @@ function FavoritesCarousel({ favorites, onSelect }) {
         <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>{active + 1} / {count}</span>
       </div>
 
-      {/* Track */}
       <div style={{ overflow: "hidden", margin: "0 -24px", padding: "4px 0 16px" }}>
         <div
           ref={trackRef}
@@ -117,7 +105,6 @@ function FavoritesCarousel({ favorites, onSelect }) {
         </div>
       </div>
 
-      {/* Dots */}
       <div style={{ display: "flex", justifyContent: "center", gap: 6 }}>
         {favorites.map((_, i) => (
           <button
@@ -142,7 +129,6 @@ function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
   return (
     <div
       onClick={() => {
-        // prevent click if user was dragging
         if (Math.abs(dragDelta.current) > 5) return;
         onSelect(recipe);
       }}
@@ -161,51 +147,33 @@ function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
     >
       <div style={{ padding: "28px 22px 22px" }}>
         <div style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          color: "rgba(255,255,255,0.7)",
-          marginBottom: 8
+          fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
+          textTransform: "uppercase", color: "rgba(255,255,255,0.7)", marginBottom: 8,
         }}>
           {recipe.category}
         </div>
-
         <h3 style={{
-          fontFamily: "var(--font-display)",
-          fontSize: 26,
-          fontWeight: 700,
-          color: "white",
-          lineHeight: 1.1,
-          marginBottom: 12,
+          fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 700,
+          color: "white", lineHeight: 1.1, marginBottom: 12,
           textShadow: "0 1px 6px rgba(0,0,0,0.2)",
         }}>
           {recipe.name}
         </h3>
-
         <StarRating rating={recipe.rating || 0} size="sm" />
       </div>
 
       <div style={{
-        background: "rgba(0,0,0,0.18)",
-        padding: "12px 22px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
+        background: "rgba(0,0,0,0.18)", padding: "12px 22px",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
       }}>
         <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>
           ⏱ {formatTime(recipe.prepTime, recipe.cookTime)}
         </span>
-
         <div style={{ display: "flex", gap: 5 }}>
           {(recipe.tags || []).slice(0, 2).map(t => (
             <span key={t} style={{
-              fontSize: 10.5,
-              padding: "2px 8px",
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.2)",
-              color: "white",
-              fontWeight: 500,
+              fontSize: 10.5, padding: "2px 8px", borderRadius: 999,
+              background: "rgba(255,255,255,0.2)", color: "white", fontWeight: 500,
             }}>
               {t}
             </span>
@@ -227,7 +195,6 @@ function RecentRow({ recipe, onSelect }) {
       onMouseEnter={e => e.currentTarget.style.opacity = "0.7"}
       onMouseLeave={e => e.currentTarget.style.opacity = "1"}
     >
-      {/* Color swatch */}
       <div style={{
         width: 48, height: 48, borderRadius: "var(--r-sm)",
         background: recipe.color, flexShrink: 0,
@@ -248,10 +215,17 @@ function RecentRow({ recipe, onSelect }) {
 }
 
 // ── Home Screen ───────────────────────────────────────────────────────────────
-export default function HomeScreen({ recipes, onSelectRecipe, onNewRecipe }) {
+export default function HomeScreen({ recipes, onGoToRecipes, onNewRecipe }) {
   const favorites = recipes.filter(r => r.favorite);
   const recent = recipes.slice(0, 6);
   const totalTime = recipes.reduce((s, r) => s + (r.prepTime || 0) + (r.cookTime || 0), 0);
+
+  // Stats: label, value, and which filter to apply on click
+  const stats = [
+    { label: "Recipes", val: recipes.length, filter: "All" },
+    { label: "Favorites", val: favorites.length, filter: "Favorites" },
+    { label: "Avg time", val: recipes.length ? `${Math.round(totalTime / recipes.length)}m` : "—", filter: null },
+  ];
 
   return (
     <div style={{ flex: 1, overflowY: "auto", paddingBottom: "calc(var(--nav-h) + 16px)" }}>
@@ -270,28 +244,45 @@ export default function HomeScreen({ recipes, onSelectRecipe, onNewRecipe }) {
           {recipes.length} recipes · {favorites.length} favorites
         </p>
 
-        {/* Stats row */}
+        {/* Stats row — Recipes and Favorites are clickable */}
         <div style={{ display: "flex", gap: 12 }}>
-          {[
-            { label: "Recipes", val: recipes.length },
-            { label: "Favorites", val: favorites.length },
-            { label: "Avg time", val: recipes.length ? `${Math.round(totalTime / recipes.length)}m` : "—" },
-          ].map(s => (
-            <div key={s.label} style={{
-              flex: 1, background: "rgba(255,255,255,0.07)", borderRadius: "var(--r-md)",
-              padding: "12px 14px", backdropFilter: "blur(8px)",
-            }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, color: "white", lineHeight: 1 }}>{s.val}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 3, fontWeight: 500 }}>{s.label}</div>
-            </div>
-          ))}
+          {stats.map(s => {
+            const clickable = s.filter !== null;
+            return (
+              <button
+                key={s.label}
+                onClick={() => clickable && onGoToRecipes(s.filter)}
+                style={{
+                  flex: 1,
+                  background: "rgba(255,255,255,0.07)",
+                  borderRadius: "var(--r-md)",
+                  padding: "12px 14px",
+                  backdropFilter: "blur(8px)",
+                  textAlign: "left",
+                  border: "none",
+                  cursor: clickable ? "pointer" : "default",
+                  transition: clickable ? "background 0.15s, transform 0.15s" : "none",
+                }}
+                onMouseEnter={e => { if (clickable) e.currentTarget.style.background = "rgba(255,255,255,0.13)"; }}
+                onMouseLeave={e => { if (clickable) e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
+              >
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, color: "white", lineHeight: 1 }}>
+                  {s.val}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 3, fontWeight: 500, display: "flex", alignItems: "center", gap: 3 }}>
+                  {s.label}
+                  {clickable && <span style={{ fontSize: 9, opacity: 0.6 }}>›</span>}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       <div style={{ padding: "28px 24px", display: "flex", flexDirection: "column", gap: 32 }}>
         {/* Favorites carousel */}
         {favorites.length > 0 ? (
-          <FavoritesCarousel favorites={favorites} onSelect={onSelectRecipe} />
+          <FavoritesCarousel favorites={favorites} onSelect={(r) => onGoToRecipes("All")} />
         ) : (
           <div style={{
             background: "var(--surface)", borderRadius: "var(--r-lg)",
@@ -312,7 +303,7 @@ export default function HomeScreen({ recipes, onSelectRecipe, onNewRecipe }) {
               </h2>
             </div>
             <div>
-              {recent.map(r => <RecentRow key={r.id} recipe={r} onSelect={onSelectRecipe} />)}
+              {recent.map(r => <RecentRow key={r.id} recipe={r} onSelect={() => onGoToRecipes("All")} />)}
             </div>
           </div>
         )}

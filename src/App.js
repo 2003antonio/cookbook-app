@@ -35,7 +35,6 @@ function BottomNav({ active, onChange, shoppingCount }) {
             transition: "color 0.15s", position: "relative",
           }}
         >
-          {/* Active indicator */}
           {active === tab.id && (
             <div style={{
               position: "absolute", top: 0, left: "25%", right: "25%",
@@ -72,12 +71,14 @@ export default function App() {
 
   const [tab, setTab] = useState("home");
   const [selectedRecipe, setSelectedRecipe] = useState(null);
-  const [formState, setFormState] = useState(null); // null | "new" | recipe
+  const [formState, setFormState] = useState(null);
+  const [recipesFilter, setRecipesFilter] = useState("All");
 
   const handleSave = (data) => {
     if (formState === "new") {
       const created = addRecipe(data);
       setSelectedRecipe(created);
+      setRecipesFilter("All");
       setTab("recipes");
     } else {
       updateRecipe(formState.id, data);
@@ -91,14 +92,15 @@ export default function App() {
     if (selectedRecipe?.id === id) setSelectedRecipe(null);
   };
 
-  const handleSelectRecipe = (recipe) => {
-    setSelectedRecipe(recipe);
+  // Navigate to Recipes tab with an optional filter ("All", "Favorites")
+  const handleGoToRecipes = (filter = "All") => {
+    setRecipesFilter(filter);
+    setSelectedRecipe(null);
     setTab("recipes");
   };
 
   const handleAddToShopping = (recipe) => {
     addFromRecipe(recipe);
-    // Brief switch hint — keep user on recipe tab
   };
 
   const uncheckedCount = shoppingItems.filter(i => !i.checked).length;
@@ -108,13 +110,12 @@ export default function App() {
       height: "100dvh", display: "flex", flexDirection: "column",
       background: "var(--paper)", overflow: "hidden", position: "relative",
     }}>
-      {/* Screen area */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
 
         {tab === "home" && (
           <HomeScreen
             recipes={recipes}
-            onSelectRecipe={handleSelectRecipe}
+            onGoToRecipes={handleGoToRecipes}
             onNewRecipe={() => setFormState("new")}
           />
         )}
@@ -130,6 +131,7 @@ export default function App() {
             onToggleFavorite={toggleFavorite}
             onAddToShopping={handleAddToShopping}
             onNewRecipe={() => setFormState("new")}
+            initialFilter={recipesFilter}
           />
         )}
 
@@ -146,10 +148,16 @@ export default function App() {
         )}
       </div>
 
-      {/* Bottom nav */}
-      <BottomNav active={tab} onChange={(t) => { setTab(t); if (t !== "recipes") setSelectedRecipe(null); }} shoppingCount={uncheckedCount} />
+      <BottomNav
+        active={tab}
+        onChange={(t) => {
+          setTab(t);
+          if (t !== "recipes") setSelectedRecipe(null);
+          if (t === "recipes") setRecipesFilter("All");
+        }}
+        shoppingCount={uncheckedCount}
+      />
 
-      {/* Form modal */}
       {formState !== null && (
         <RecipeForm
           initial={formState === "new" ? null : formState}
