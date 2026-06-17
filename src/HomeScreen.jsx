@@ -1,6 +1,198 @@
 import { useState, useRef } from "react";
 import { StarRating } from "./components.jsx";
-import { formatTime } from "./useRecipes";
+import { formatTime, formatIngredient } from "./useRecipes";
+
+// ── Read-only Recipe Preview Sheet ───────────────────────────────────────────
+function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
+  const [activeTab, setActiveTab] = useState("ingredients");
+  const [servings, setServings] = useState(null);
+  const [addedToast, setAddedToast] = useState(false);
+
+  if (!recipe) return null;
+
+  const currentServings = servings ?? recipe.baseServings ?? 4;
+  const multiplier = currentServings / (recipe.baseServings || 1);
+
+  const handleClose = () => { setServings(null); setActiveTab("ingredients"); onClose(); };
+
+  const handleAddToShopping = () => {
+    onAddToShopping(recipe);
+    setAddedToast(true);
+    setTimeout(() => setAddedToast(false), 2000);
+  };
+
+  const tabs = ["ingredients", "steps", ...(recipe.notes ? ["notes"] : [])];
+
+  return (
+    <>
+      {/* Scrim */}
+      <div
+        onClick={handleClose}
+        style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+          backdropFilter: "blur(2px)", zIndex: 90,
+          animation: "fadeIn 0.2s ease",
+        }}
+      />
+
+      {/* Sheet */}
+      <div style={{
+        position: "fixed", left: 0, right: 0, bottom: 0,
+        height: "88vh", background: "white",
+        borderRadius: "24px 24px 0 0",
+        boxShadow: "0 -8px 40px rgba(0,0,0,0.15)",
+        zIndex: 91, overflowY: "auto",
+        animation: "slideUp 0.36s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}>
+        {/* Drag handle */}
+        <div style={{
+          position: "sticky", top: 0, zIndex: 1, background: "white",
+          padding: "10px 0 0", display: "flex", justifyContent: "center",
+        }}>
+          <div style={{ width: 36, height: 4, borderRadius: 999, background: "var(--border)" }} />
+        </div>
+
+        {/* Hero */}
+        <div style={{
+          background: recipe.color,
+          padding: "32px 24px 28px",
+          position: "relative",
+          flexShrink: 0,
+        }}>
+          {/* Close button */}
+          <button
+            onClick={handleClose}
+            style={{
+              position: "absolute", top: 16, right: 16,
+              width: 34, height: 34, borderRadius: "50%",
+              background: "rgba(255,255,255,0.22)", backdropFilter: "blur(4px)",
+              color: "white", fontSize: 14,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.38)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.22)"}
+          >✕</button>
+
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 6 }}>
+            {recipe.category}
+          </div>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 700, color: "white", lineHeight: 1.15, marginBottom: 10, textShadow: "0 1px 6px rgba(0,0,0,0.18)" }}>
+            {recipe.name}
+          </h2>
+          <StarRating rating={recipe.rating || 0} />
+        </div>
+
+        {/* Info row */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: "1px solid var(--border)" }}>
+          {[
+            { label: "Prep", val: recipe.prepTime ? `${recipe.prepTime}m` : "—" },
+            { label: "Cook", val: recipe.cookTime ? `${recipe.cookTime}m` : "—" },
+            { label: "Total", val: formatTime(recipe.prepTime, recipe.cookTime) },
+          ].map((p, i, arr) => (
+            <div key={p.label} style={{
+              display: "flex", flexDirection: "column", alignItems: "center",
+              padding: "14px 8px", gap: 3,
+              borderRight: i < arr.length - 1 ? "1px solid var(--border)" : "none",
+            }}>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-faint)" }}>{p.label}</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>{p.val}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Servings scaler */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
+          padding: "12px 20px", borderBottom: "1px solid var(--border)",
+          background: "var(--surface)",
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-faint)", flex: 1 }}>Servings</span>
+          <div style={{ display: "flex", alignItems: "center", border: "1.5px solid var(--border)", borderRadius: 999, overflow: "hidden", background: "white" }}>
+            <button
+              style={{ width: 32, height: 32, fontSize: 18, color: "var(--fire)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center" }}
+              onClick={() => setServings(Math.max(1, currentServings - 1))}
+            >−</button>
+            <span style={{ width: 32, textAlign: "center", fontSize: 14, fontWeight: 600 }}>{currentServings}</span>
+            <button
+              style={{ width: 32, height: 32, fontSize: 18, color: "var(--fire)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center" }}
+              onClick={() => setServings(currentServings + 1)}
+            >+</button>
+          </div>
+          {multiplier !== 1 && (
+            <button style={{ fontSize: 11, color: "var(--fire)", textDecoration: "underline" }} onClick={() => setServings(null)}>reset</button>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: "flex", borderBottom: "1px solid var(--border)", padding: "0 20px", gap: 4 }}>
+          {tabs.map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{
+              padding: "12px 14px", fontSize: 13.5, fontWeight: 500,
+              color: activeTab === tab ? "var(--fire)" : "var(--ink-soft)",
+              borderBottom: activeTab === tab ? "2px solid var(--fire)" : "2px solid transparent",
+              marginBottom: -1, textTransform: "capitalize", transition: "color 0.15s",
+            }}>{tab}</button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div style={{ padding: 20 }}>
+          {activeTab === "ingredients" && (
+            <ul style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {(recipe.ingredients || []).map(ing => (
+                <li key={ing.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: "var(--ink)", lineHeight: 1.4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--fire)", flexShrink: 0 }} />
+                  {formatIngredient(ing, multiplier)}
+                </li>
+              ))}
+            </ul>
+          )}
+          {activeTab === "steps" && (
+            <ol style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {(recipe.steps || []).map((step, i) => (
+                <li key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <span style={{
+                    width: 24, height: 24, borderRadius: "50%",
+                    background: "var(--fire-dim)", color: "var(--fire)",
+                    fontSize: 12, fontWeight: 700,
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>{i + 1}</span>
+                  <p style={{ fontSize: 13.5, color: "var(--ink)", lineHeight: 1.55, paddingTop: 2 }}>{step}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+          {activeTab === "notes" && (
+            <div style={{
+              background: "var(--fire-glow)", borderLeft: "3px solid var(--fire)",
+              borderRadius: "0 var(--r-sm) var(--r-sm) 0",
+              padding: "14px 16px", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)",
+            }}>{recipe.notes}</div>
+          )}
+        </div>
+
+        {/* Footer — shopping only, no edit/delete */}
+        <div style={{ padding: "14px 20px 32px", borderTop: "1px solid var(--border)" }}>
+          <button
+            onClick={handleAddToShopping}
+            style={{
+              width: "100%", padding: "11px", borderRadius: "var(--r-md)",
+              background: addedToast ? "#22c55e" : "var(--fire)", color: "white",
+              fontSize: 13.5, fontWeight: 600, transition: "background 0.3s",
+            }}
+          >
+            {addedToast ? "✓ Added to shopping list!" : "🛒 Add ingredients to list"}
+          </button>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+      `}</style>
+    </>
+  );
+}
 
 // ── Swipeable Favorites Carousel ──────────────────────────────────────────────
 function FavoritesCarousel({ favorites, onSelect }) {
@@ -198,8 +390,6 @@ function RecentRow({ recipe, onSelect }) {
       <div style={{
         width: 48, height: 48, borderRadius: "var(--r-sm)",
         background: recipe.color, flexShrink: 0,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 20,
       }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600, fontSize: 14.5, color: "var(--ink)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -215,12 +405,13 @@ function RecentRow({ recipe, onSelect }) {
 }
 
 // ── Home Screen ───────────────────────────────────────────────────────────────
-export default function HomeScreen({ recipes, onGoToRecipes, onNewRecipe }) {
+export default function HomeScreen({ recipes, onGoToRecipes, onNewRecipe, onAddToShopping }) {
+  const [previewRecipe, setPreviewRecipe] = useState(null);
+
   const favorites = recipes.filter(r => r.favorite);
   const recent = recipes.slice(0, 6);
   const totalTime = recipes.reduce((s, r) => s + (r.prepTime || 0) + (r.cookTime || 0), 0);
 
-  // Stats: label, value, and which filter to apply on click
   const stats = [
     { label: "Recipes", val: recipes.length, filter: "All" },
     { label: "Favorites", val: favorites.length, filter: "Favorites" },
@@ -244,7 +435,7 @@ export default function HomeScreen({ recipes, onGoToRecipes, onNewRecipe }) {
           {recipes.length} recipes · {favorites.length} favorites
         </p>
 
-        {/* Stats row — Recipes and Favorites are clickable */}
+        {/* Stats row */}
         <div style={{ display: "flex", gap: 12 }}>
           {stats.map(s => {
             const clickable = s.filter !== null;
@@ -261,7 +452,7 @@ export default function HomeScreen({ recipes, onGoToRecipes, onNewRecipe }) {
                   textAlign: "left",
                   border: "none",
                   cursor: clickable ? "pointer" : "default",
-                  transition: clickable ? "background 0.15s, transform 0.15s" : "none",
+                  transition: clickable ? "background 0.15s" : "none",
                 }}
                 onMouseEnter={e => { if (clickable) e.currentTarget.style.background = "rgba(255,255,255,0.13)"; }}
                 onMouseLeave={e => { if (clickable) e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
@@ -280,9 +471,9 @@ export default function HomeScreen({ recipes, onGoToRecipes, onNewRecipe }) {
       </div>
 
       <div style={{ padding: "28px 24px", display: "flex", flexDirection: "column", gap: 32 }}>
-        {/* Favorites carousel */}
+        {/* Favorites carousel — card tap opens preview sheet */}
         {favorites.length > 0 ? (
-          <FavoritesCarousel favorites={favorites} onSelect={(r) => onGoToRecipes("All")} />
+          <FavoritesCarousel favorites={favorites} onSelect={setPreviewRecipe} />
         ) : (
           <div style={{
             background: "var(--surface)", borderRadius: "var(--r-lg)",
@@ -320,6 +511,15 @@ export default function HomeScreen({ recipes, onGoToRecipes, onNewRecipe }) {
           </div>
         )}
       </div>
+
+      {/* Read-only preview sheet */}
+      {previewRecipe && (
+        <RecipePreviewSheet
+          recipe={previewRecipe}
+          onClose={() => setPreviewRecipe(null)}
+          onAddToShopping={onAddToShopping}
+        />
+      )}
     </div>
   );
 }
