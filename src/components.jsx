@@ -78,40 +78,47 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
       </div>
 
       {/* Info row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", borderBottom: "1px solid var(--border)" }}>
         {[
           { label: "Prep", val: recipe.prepTime ? `${recipe.prepTime}m` : "—" },
           { label: "Cook", val: recipe.cookTime ? `${recipe.cookTime}m` : "—" },
           { label: "Total", val: formatTime(recipe.prepTime, recipe.cookTime) },
+          {
+            label: "Servings",
+            customRender: () => (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+                <div style={{ display: "flex", alignItems: "center", border: "1.5px solid var(--border)", borderRadius: 999, overflow: "hidden", background: "white" }}>
+                  <button style={{ width: 32, height: 32, fontSize: 18, color: "var(--fire)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer" }}
+                    onClick={() => setServings(Math.max(1, currentServings - 1))}>−</button>
+                  <span style={{ width: 32, textAlign: "center", fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>{currentServings}</span>
+                  <button style={{ width: 32, height: 32, fontSize: 18, color: "var(--fire)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer" }}
+                    onClick={() => setServings(currentServings + 1)}>+</button>
+                </div>
+                {multiplier !== 1 && (
+                  <button style={{
+                    fontSize: 12, color: "var(--fire)", textDecoration: "underline",
+                    background: "none", border: "none", cursor: "pointer", padding: 0,
+                    position: "absolute", bottom: -18, left: "50%", transform: "translateX(-50%)",
+                    whiteSpace: "nowrap"
+                  }}
+                    onClick={() => setServings(null)}>reset</button>
+                )}
+              </div>
+            )
+          }
         ].map((p, i, arr) => (
           <div key={p.label} style={{
             display: "flex", flexDirection: "column", alignItems: "center",
-            padding: "14px 8px", gap: 3,
+            justifyContent: "center", // FIX: Vertically centers text labels across all 4 columns
+            padding: "14px 8px 20px", // FIX: Replaced temporary margin with uniform bottom layout padding
+            gap: 3,
             borderRight: i < arr.length - 1 ? "1px solid var(--border)" : "none",
+            background: p.label === "Servings" ? "var(--surface)" : "none",
           }}>
             <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-faint)" }}>{p.label}</span>
-            <span style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>{p.val}</span>
+            {p.customRender ? p.customRender() : <span style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>{p.val}</span>}
           </div>
         ))}
-      </div>
-
-      {/* Servings scaler */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 12,
-        padding: "12px 20px", borderBottom: "1px solid var(--border)",
-        background: "var(--surface)",
-      }}>
-        <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-faint)", flex: 1 }}>Servings</span>
-        <div style={{ display: "flex", alignItems: "center", border: "1.5px solid var(--border)", borderRadius: 999, overflow: "hidden", background: "white" }}>
-          <button style={{ width: 32, height: 32, fontSize: 18, color: "var(--fire)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center" }}
-            onClick={() => setServings(Math.max(1, currentServings - 1))}>−</button>
-          <span style={{ width: 32, textAlign: "center", fontSize: 14, fontWeight: 600 }}>{currentServings}</span>
-          <button style={{ width: 32, height: 32, fontSize: 18, color: "var(--fire)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center" }}
-            onClick={() => setServings(currentServings + 1)}>+</button>
-        </div>
-        {multiplier !== 1 && (
-          <button style={{ fontSize: 11, color: "var(--fire)", textDecoration: "underline" }} onClick={() => setServings(null)}>reset</button>
-        )}
       </div>
 
       {/* Tabs */}
@@ -171,34 +178,46 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
       </div>
 
       {/* Footer actions */}
-      <div style={{ padding: "14px 20px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ padding: "14px 20px 25px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 10 }}>
         <button
           onClick={handleAddToShopping}
           style={{
-            width: "100%", padding: "11px", borderRadius: "var(--r-md)",
+            width: "100%", padding: "8px", borderRadius: "var(--r-md)",
             background: addedToast ? "#22c55e" : "var(--fire)", color: "white",
             fontSize: 13.5, fontWeight: 600, transition: "background 0.3s",
           }}
         >
-          {addedToast ? "✓ Added to shopping list!" : "🛒 Add ingredients to list"}
+          {addedToast ? "✓ Added to shopping list!" : "🛒 Add ingredients to shopping list"}
         </button>
 
         {confirmDelete ? (
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => { onDelete(recipe.id); handleClose(); }}
-              style={{ flex: 1, padding: "9px", background: "#ef4444", color: "white", borderRadius: "var(--r-sm)", fontSize: 13, fontWeight: 600 }}>
+              style={{ flex: 1, padding: "5.5px", background: "#ef4444", color: "white", borderRadius: "var(--r-sm)", fontSize: 13, fontWeight: 600 }}>
               Yes, delete
             </button>
             <button onClick={() => setConfirmDelete(false)}
-              style={{ flex: 1, padding: "9px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", fontSize: 13, color: "var(--ink-soft)" }}>
+              style={{ flex: 1, padding: "5.5px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", fontSize: 13, color: "var(--ink-soft)" }}>
               Cancel
             </button>
           </div>
         ) : (
           <button onClick={() => setConfirmDelete(true)}
-            style={{ fontSize: 13, color: "var(--ink-faint)", transition: "color 0.15s" }}
-            onMouseEnter={e => e.target.style.color = "#ef4444"}
-            onMouseLeave={e => e.target.style.color = "var(--ink-faint)"}>
+            style={{
+              padding: "5px", fontSize: 13.5, fontWeight: 500,
+              color: "#ef4444", background: "#fef2f2", // Soft red background makes the destructive intent instantly clear
+              border: "1px solid #fee2e2", borderRadius: "var(--r-md)",
+              cursor: "pointer", transition: "all 0.15s ease",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = "#fee2e2";
+              e.currentTarget.style.borderColor = "#fca5a5";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = "#fef2f2";
+              e.currentTarget.style.borderColor = "#fee2e2";
+            }}>
             🗑 Delete recipe
           </button>
         )}

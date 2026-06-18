@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { StarRating, RecipeDetail } from "./components.jsx";
 import { CATEGORY_OPTIONS, formatTime } from "./useRecipes";
 
@@ -66,6 +66,38 @@ function RecipeCard({ recipe, onSelect, active, onToggleFavorite }) {
 
 // ── Slide-up Detail Sheet ─────────────────────────────────────────────────────
 function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAddToShopping }) {
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startY = useRef(0);
+
+  // Touch Start: Record where the finger first touched
+  const handleTouchStart = (e) => {
+    startY.current = e.touches[0].clientY;
+    setIsDragging(true);
+  };
+
+  //Touch Move: Calculate how far down the user pulled
+  const handleTouchMove = (e) => {
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - startY.current;
+
+    //Only allow dragging downwards (positive numbers)
+    if (deltaY > 0) {
+      setDragY(deltaY);
+    }
+  };
+
+  //Touch End: Decide to close or snap back up
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+
+    // If pulled down more than 250px, close it. Otherwise, reset.
+    if (dragY > 250) {
+      onClose();
+    }
+    setDragY(0);
+  };
+
   return (
     <>
       {recipe && (
@@ -81,15 +113,26 @@ function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAd
         height: "88vh", background: "white",
         borderRadius: "24px 24px 0 0",
         boxShadow: "0 -8px 40px rgba(0,0,0,0.15)",
-        zIndex: 91, overflowY: "auto",
-        transform: recipe ? "translateY(0)" : "translateY(100%)",
-        transition: "transform 0.36s cubic-bezier(0.4, 0, 0.2, 1)",
+        zIndex: 91, overflow: "hidden",
+        flexDirection: "column",
+        // Dynamically add the drag distance to the translation
+        transform: recipe ? `translateY(${dragY}px)` : "translateY(100%)",
+        // Disable transition animations only while the user is actively dragging
+        transition: isDragging ? "none" : "transform 0.36s cubic-bezier(0.4, 0, 0.2, 1)",
       }}>
-        {/* Drag handle */}
-        <div style={{
-          position: "sticky", top: 0, zIndex: 1, background: "white",
-          padding: "10px 0 0", display: "flex", justifyContent: "center",
-        }}>
+
+        {/* Attaching the touch event listeners directly to the drag handle area */}
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{
+            position: "sticky", top: 0, zIndex: 1, background: "white",
+            padding: "10px 0 5px", display: "flex", justifyContent: "center",
+            cursor: "grab", // Changes cursor to hand icon on desktop browsers
+            touchAction: "none" // Prevents default browser refreshing/scrolling behavior
+          }}
+        >
           <div style={{ width: 36, height: 4, borderRadius: 999, background: "var(--border)" }} />
         </div>
 
