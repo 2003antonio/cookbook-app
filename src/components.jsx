@@ -115,9 +115,16 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", padding: "0 20px", gap: 4 }}>
+      <div style={{
+        display: "flex",
+        borderBottom: "1px solid var(--border)",
+        padding: "0 20px",
+        gap: "12px"
+      }}>
         {tabs.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} style={{
+            flex: 1, 
+            textAlign: "center",
             padding: "12px 14px", fontSize: 13.5, fontWeight: 500,
             color: activeTab === tab ? "var(--fire)" : "var(--ink-soft)",
             borderBottom: activeTab === tab ? "2px solid var(--fire)" : "2px solid transparent",
@@ -125,6 +132,7 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
           }}>{tab}</button>
         ))}
       </div>
+
 
       {/* Tab content */}
       <div style={{ padding: 20, flex: 1, overflowY: "auto" }}>
@@ -218,7 +226,7 @@ function HeroBtn({ children, onClick, title }) {
 const BLANK = {
   name: "", category: "Main Dish", prepTime: "", cookTime: "",
   baseServings: 4, color: CARD_COLORS[0], rating: 0,
-  tags: [], notes: "", ingredients: [newIngredient()], steps: [""],
+  tags: [], notes: "", ingredients: [newIngredient(), newIngredient(), newIngredient(), newIngredient()], steps: ["", "", ""],
 };
 
 export function RecipeForm({ initial, onSave, onCancel }) {
@@ -344,7 +352,7 @@ export function RecipeForm({ initial, onSave, onCancel }) {
               {form.ingredients.map(ing => (
                 <div key={ing.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <input style={{ ...inputStyle(), width: 64 }} type="number" min="0" step="0.25"
-                    value={ing.amount} onChange={e => setIng(ing.id, "amount", parseFloat(e.target.value) || 0)} placeholder="1" />
+                    value={ing.amount} onChange={e => setIng(ing.id, "amount", parseFloat(e.target.value))} placeholder="1" />
                   <select style={{ ...inputStyle(), width: 80, cursor: "pointer" }} value={ing.unit} onChange={e => setIng(ing.id, "unit", e.target.value)}>
                     {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                   </select>

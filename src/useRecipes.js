@@ -212,7 +212,7 @@ export function formatTime(prepTime, cookTime) {
 }
 
 export function newIngredient() {
-  return { id: `i${Date.now()}${Math.random()}`, amount: 1, unit: "cup", name: "" };
+  return { id: `i${Date.now()}${Math.random()}`, amount: "", unit: "cup", name: "" };
 }
 
 export function useRecipes() {
