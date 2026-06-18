@@ -146,6 +146,7 @@ const SEED_RECIPES = [
 ];
 
 export const UNITS = [
+  { value: "quart", label: "quart" },
   { value: "cup", label: "cup" },
   { value: "tbsp", label: "tbsp" },
   { value: "tsp", label: "tsp" },
@@ -167,15 +168,12 @@ export const CATEGORY_OPTIONS = [
   { name: "Side Dish", emoji: "🍟" },
   { name: "Soup", emoji: "🍲" },
   { name: "Dessert", emoji: "🍰" },
-  { name: "Baking", emoji: "🥐" },
-  { name: "Snack", emoji: "🍪" },
   { name: "Beverage", emoji: "🍹" },
 ];
 
 export const CARD_COLORS = [
   "#F5C842","#355fe9","#e71f1f","#299932","#ff830e",
-  "#eb09b2","#5E8FA6","#A67C9E","#E07B54","#7C9E6B",
-  "#C4522A","#4A8FA6","#E8621A","#03eee2",
+  "#eb09b2","#875504","#000000", "#ac02db", "#00f5ab",
 ];
 
 export function formatAmount(amount, multiplier = 1) {
