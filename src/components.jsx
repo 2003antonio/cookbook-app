@@ -36,12 +36,14 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addedToast, setAddedToast] = useState(false);
   const [isFavorite, setIsFavorite] = useState(recipe?.favorite ?? false);
+  const [checkedIngredients, setCheckedIngredients] = useState({});
   const lastRecipeId = useRef(recipe?.id);
 
   // Sync local state when a different recipe is opened
   if (recipe?.id !== lastRecipeId.current) {
     lastRecipeId.current = recipe?.id;
     setIsFavorite(recipe?.favorite ?? false);
+    setCheckedIngredients({});
   }
 
   if (!recipe) return null;
@@ -54,12 +56,16 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
     onToggleFavorite(recipe.id);
   };
 
-  const handleClose = () => { setServings(null); setConfirmDelete(false); onClose(); };
+  const handleClose = () => { setServings(null); setConfirmDelete(false); setCheckedIngredients({}); onClose(); };
 
   const handleAddToShopping = () => {
     onAddToShopping(recipe);
     setAddedToast(true);
     setTimeout(() => setAddedToast(false), 2000);
+  };
+
+  const toggleIngredient = (id) => {
+    setCheckedIngredients(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const tabs = ["ingredients", "steps", ...(recipe.notes ? ["notes"] : [])];
@@ -68,6 +74,10 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
   const noteLines = recipe.notes
     ? recipe.notes.split("\n").map(l => l.trim()).filter(Boolean)
     : [];
+
+  const ingredients = recipe.ingredients || [];
+  const checkedCount = ingredients.filter(ing => checkedIngredients[ing.id]).length;
+  const totalCount = ingredients.length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -160,16 +170,95 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
 
       {/* Tab content */}
       <div style={{ padding: 20, flex: 1, overflowY: "auto" }}>
+
+        {/* ── Ingredients checklist ── */}
         {activeTab === "ingredients" && (
-          <ul style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {(recipe.ingredients || []).map(ing => (
-              <li key={ing.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: "var(--ink)", lineHeight: 1.4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--fire)", flexShrink: 0 }} />
-                {formatIngredient(ing, multiplier)}
-              </li>
-            ))}
-          </ul>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+            {/* Progress bar — only shown once something is checked */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    {checkedCount} of {totalCount} ready
+                  </span>
+                  {checkedCount === totalCount && (
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: "#22c55e" }}>All set! ✓</span>
+                  )}
+                </div>
+                <div style={{ height: 4, borderRadius: 999, background: "var(--border)", overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%", borderRadius: 999,
+                    background: checkedCount === totalCount ? "#22c55e" : "var(--fire)",
+                    width: `${(checkedCount / totalCount) * 100}%`,
+                    transition: "width 0.3s ease, background 0.3s ease",
+                  }} />
+                </div>
+              </div>
+
+            {/* Checklist rows */}
+            <ul style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {ingredients.map(ing => {
+                const checked = !!checkedIngredients[ing.id];
+                return (
+                  <li
+                    key={ing.id}
+                    onClick={() => toggleIngredient(ing.id)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 12,
+                      padding: "9px 10px", borderRadius: "var(--r-sm)",
+                      cursor: "pointer", transition: "background 0.12s",
+                      background: checked ? "var(--surface)" : "transparent",
+                      userSelect: "none",
+                    }}
+                    onMouseEnter={e => { if (!checked) e.currentTarget.style.background = "var(--surface)"; }}
+                    onMouseLeave={e => { if (!checked) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    {/* Custom checkbox */}
+                    <div style={{
+                      width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+                      border: checked ? "none" : "2px solid var(--border)",
+                      background: checked ? "var(--fire)" : "white",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 0.15s ease",
+                      boxShadow: checked ? "0 1px 4px rgba(232,98,26,0.3)" : "none",
+                    }}>
+                      {checked && (
+                        <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
+                          <path d="M1 3.5L4 6.5L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+
+                    <span style={{
+                      fontSize: 13.5,
+                      color: checked ? "var(--ink-faint)" : "var(--ink)",
+                      lineHeight: 1.4, flex: 1,
+                      textDecoration: checked ? "line-through" : "none",
+                      transition: "color 0.15s",
+                    }}>
+                      {formatIngredient(ing, multiplier)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Clear all */}
+            {checkedCount > 0 && (
+              <button
+                onClick={() => setCheckedIngredients({})}
+                style={{
+                  alignSelf: "flex-start", fontSize: 12.5, color: "var(--ink-faint)",
+                  background: "none", border: "none", cursor: "pointer", padding: 0,
+                  textDecoration: "underline",
+                }}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
         )}
+
         {activeTab === "steps" && (
           <ol style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {(recipe.steps || []).map((step, i) => (
@@ -185,6 +274,7 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
             ))}
           </ol>
         )}
+
         {activeTab === "notes" && (
           <ul style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {noteLines.map((line, i) => (
@@ -267,6 +357,19 @@ function HeroBtn({ children, onClick, title }) {
   );
 }
 
+// ── Fraction / decimal parser ─────────────────────────────────────────────────
+function parseAmount(val) {
+  if (val === "" || val == null) return 0;
+  const str = String(val).trim();
+  // "1 1/2"
+  const mixed = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
+  // "1/2"
+  const frac = str.match(/^(\d+)\/(\d+)$/);
+  if (frac) return parseInt(frac[1]) / parseInt(frac[2]);
+  return parseFloat(str) || 0;
+}
+
 // ── Recipe Form ───────────────────────────────────────────────────────────────
 const FORM_TABS = ["details", "ingredients", "steps", "notes"];
 
@@ -311,7 +414,9 @@ export function RecipeForm({ initial, onSave, onCancel }) {
       prepTime: Number(form.prepTime) || 0,
       cookTime: Number(form.cookTime) || 0,
       baseServings: Number(form.baseServings) || 4,
-      ingredients: form.ingredients.filter(i => i.name.trim()),
+      ingredients: form.ingredients
+        .filter(i => i.name.trim())
+        .map(i => ({ ...i, amount: parseAmount(i.amount) })),
       steps: form.steps.filter(s => s.trim()),
     });
   };
@@ -465,8 +570,15 @@ export function RecipeForm({ initial, onSave, onCancel }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {form.ingredients.map(ing => (
                   <div key={ing.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <input style={{ ...inputStyle(), width: 64 }} type="number" min="0" step="0.25"
-                      value={ing.amount} onChange={e => setIng(ing.id, "amount", parseFloat(e.target.value))} placeholder="1" />
+                    {/* text input supports fractions (1/2, 1 1/2) and decimals (0.75) */}
+                    <input
+                      style={{ ...inputStyle(), width: 64 }}
+                      type="text"
+                      inputMode="decimal"
+                      value={ing.amount}
+                      onChange={e => setIng(ing.id, "amount", e.target.value)}
+                      placeholder="1"
+                    />
                     <select style={{ ...inputStyle(), width: 80, cursor: "pointer" }} value={ing.unit} onChange={e => setIng(ing.id, "unit", e.target.value)}>
                       {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                     </select>
