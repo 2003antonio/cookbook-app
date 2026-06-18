@@ -123,7 +123,7 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
       }}>
         {tabs.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} style={{
-            flex: 1, 
+            flex: 1,
             textAlign: "center",
             padding: "12px 14px", fontSize: 13.5, fontWeight: 500,
             color: activeTab === tab ? "var(--fire)" : "var(--ink-soft)",

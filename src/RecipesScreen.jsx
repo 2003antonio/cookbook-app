@@ -127,8 +127,8 @@ export default function RecipesScreen({
   const filtered = recipes.filter(r => {
     const matchCat =
       activeCategory === "All" ? true :
-      activeCategory === "Favorites" ? r.favorite :
-      r.category === activeCategory;
+        activeCategory === "Favorites" ? r.favorite :
+          r.category === activeCategory;
     const matchSearch =
       r.name.toLowerCase().includes(search.toLowerCase()) ||
       (r.tags || []).some(t => t.toLowerCase().includes(search.toLowerCase()));

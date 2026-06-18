@@ -172,8 +172,8 @@ export const CATEGORY_OPTIONS = [
 ];
 
 export const CARD_COLORS = [
-  "#F5C842","#355fe9","#e71f1f","#299932","#ff830e",
-  "#eb09b2","#875504","#000000", "#ac02db", "#00f5ab",
+  "#F5C842", "#355fe9", "#e71f1f", "#299932", "#ff830e",
+  "#eb09b2", "#875504", "#000000", "#ac02db", "#00f5ab",
 ];
 
 export function formatAmount(amount, multiplier = 1) {
@@ -182,8 +182,8 @@ export function formatAmount(amount, multiplier = 1) {
   const rounded = Math.round(val * 100) / 100;
   if (rounded % 1 === 0) return String(rounded);
   const fractions = [
-    [1/8,"⅛"],[1/4,"¼"],[1/3,"⅓"],[3/8,"⅜"],
-    [1/2,"½"],[5/8,"⅝"],[2/3,"⅔"],[3/4,"¾"],[7/8,"⅞"],
+    [1 / 8, "⅛"], [1 / 4, "¼"], [1 / 3, "⅓"], [3 / 8, "⅜"],
+    [1 / 2, "½"], [5 / 8, "⅝"], [2 / 3, "⅔"], [3 / 4, "¾"], [7 / 8, "⅞"],
   ];
   const whole = Math.floor(rounded);
   const frac = rounded - whole;
@@ -223,12 +223,12 @@ export function useRecipes() {
         const parsed = JSON.parse(stored);
         if (parsed.length > 0) return parsed;
       }
-    } catch (e) {}
+    } catch (e) { }
     return SEED_RECIPES;
   });
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes)); } catch (e) {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes)); } catch (e) { }
   }, [recipes]);
 
   const addRecipe = useCallback((recipe) => {
@@ -264,7 +264,7 @@ export function useShoppingList() {
   });
 
   useEffect(() => {
-    try { localStorage.setItem(SHOPPING_KEY, JSON.stringify(items)); } catch (e) {}
+    try { localStorage.setItem(SHOPPING_KEY, JSON.stringify(items)); } catch (e) { }
   }, [items]);
 
   const addItem = useCallback((text) => {
