@@ -70,6 +70,18 @@ function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAd
   const [isDragging, setIsDragging] = useState(false);
   const startY = useRef(0);
 
+  useEffect(() => {
+    if (recipe) {
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      document.body.style.overflow = "hidden";
+      
+      // Clean up and restore original scroll behavior when unmounting or closing
+      return () => {
+        document.body.style.overflow = originalStyle;
+      };
+    }
+  }, [recipe]);
+
   // Touch Start: Record where the finger first touched
   const handleTouchStart = (e) => {
     startY.current = e.touches[0].clientY;
