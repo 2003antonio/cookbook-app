@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { StarRating } from "./components.jsx";
 import { formatTime, formatIngredient } from "./useRecipes";
 
@@ -194,31 +194,70 @@ function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
   );
 }
 
-// ── Swipeable Favorites Carousel ──────────────────────────────────────────────
-function FavoritesCarousel({ favorites, onSelect }) {
-  const [active, setActive] = useState(0);
-  const trackRef = useRef(null);
+// ── Swipeable, Infinitely-Looping Favorites Carousel ──────────────────────────
+const CARD_W = 280;
+const GAP = 16;
+const CARD_STEP = CARD_W + GAP;
+
+function FavoritesCarousel({ favorites, onSelect, onAddNew }) {
+  const outerRef = useRef(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  // Measure available width so we know how many cards are visible on this device
+  useEffect(() => {
+    const measure = () => setContainerWidth(outerRef.current?.offsetWidth || window.innerWidth);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  // Build the base slide list: real favorites, padded with "add new" placeholders
+  // so the row is long enough to loop smoothly on this screen size.
+  const visibleCount = containerWidth ? Math.max(1, Math.ceil(containerWidth / CARD_STEP)) : 2;
+  const minSlides = Math.max(visibleCount * 2, 3);
+  const placeholderCount = Math.max(0, minSlides - favorites.length);
+
+  const baseSlides = [
+    ...favorites.map(r => ({ type: "recipe", id: String(r.id), recipe: r })),
+    ...Array.from({ length: placeholderCount }, (_, i) => ({ type: "placeholder", id: `placeholder-${i}` })),
+  ];
+  const n = baseSlides.length;
+
+  // Triple the list so we always have a full "screen" of cards to scroll toward
+  // in either direction — the illusion of an endless, continuously rotating loop.
+  const loopSlides = [...baseSlides, ...baseSlides, ...baseSlides];
+
+  const [active, setActive] = useState(n); // start in the middle copy
+  const [transitioning, setTransitioning] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+
   const startX = useRef(null);
   const lastX = useRef(0);
   const velocity = useRef(0);
   const dragging = useRef(false);
   const dragDelta = useRef(0);
-  const [dragOffset, setDragOffset] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
 
-  const count = favorites.length;
-  if (!count) return null;
+  // Re-center whenever the slide count changes (e.g. a favorite is added/removed)
+  useEffect(() => { setTransitioning(false); setActive(n); }, [n]);
 
-  const cardW = 280;
-  const gap = 16;
-
-  const clamp = (n) => Math.max(0, Math.min(count - 1, n));
+  if (!favorites.length) return null;
 
   const goTo = (idx) => {
-    setActive(clamp(idx));
     setDragOffset(0);
-    setIsAnimating(true);
-    setTimeout(() => setIsAnimating(false), 400);
+    setTransitioning(true);
+    setActive(idx);
+  };
+
+  // Once a swipe/snap animation finishes, silently re-center into the middle
+  // copy of the loop (no transition) so we never run out of cards to scroll to.
+  // Guard against bubbled transitionend events from child cards (their own
+  // hover/active transform & box-shadow transitions) — only react to the
+  // track's own transform finishing.
+  const handleTransitionEnd = (e) => {
+    if (e.target !== e.currentTarget || e.propertyName !== "transform") return;
+    setTransitioning(false);
+    if (active >= n * 2) setActive(active - n);
+    else if (active < n) setActive(active + n);
   };
 
   const onDown = (e) => {
@@ -227,6 +266,7 @@ function FavoritesCarousel({ favorites, onSelect }) {
     dragging.current = true;
     dragDelta.current = 0;
     velocity.current = 0;
+    setTransitioning(false);
   };
 
   const onMove = (e) => {
@@ -235,9 +275,8 @@ function FavoritesCarousel({ favorites, onSelect }) {
     velocity.current = x - lastX.current;
     lastX.current = x;
     dragDelta.current = x - startX.current;
-    const maxOffset = cardW * 0.4;
-    const bounded = Math.max(-maxOffset, Math.min(maxOffset, dragDelta.current));
-    setDragOffset(bounded);
+    const maxOffset = CARD_W * 0.4;
+    setDragOffset(Math.max(-maxOffset, Math.min(maxOffset, dragDelta.current)));
   };
 
   const onUp = () => {
@@ -245,12 +284,14 @@ function FavoritesCarousel({ favorites, onSelect }) {
     dragging.current = false;
     const move = dragDelta.current;
     const v = velocity.current;
-    const threshold = cardW * 0.25;
+    const threshold = CARD_W * 0.25;
     let next = active;
     if (move < -threshold || v < -5) next = active + 1;
     else if (move > threshold || v > 5) next = active - 1;
     goTo(next);
   };
+
+  const activeDot = ((active % n) + n) % n;
 
   return (
     <div>
@@ -258,12 +299,11 @@ function FavoritesCarousel({ favorites, onSelect }) {
         <h2 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 600, color: "var(--ink)" }}>
           Your Favorites
         </h2>
-        <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>{active + 1} / {count}</span>
+        <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>{activeDot + 1} / {n}</span>
       </div>
 
-      <div style={{ overflow: "hidden", margin: "0 -24px", padding: "4px 0 16px" }}>
+      <div ref={outerRef} style={{ overflow: "hidden", margin: "0 -24px", padding: "4px 0 16px" }}>
         <div
-          ref={trackRef}
           onMouseDown={onDown}
           onMouseMove={onMove}
           onMouseUp={onUp}
@@ -271,42 +311,50 @@ function FavoritesCarousel({ favorites, onSelect }) {
           onTouchStart={onDown}
           onTouchMove={onMove}
           onTouchEnd={onUp}
+          onTransitionEnd={handleTransitionEnd}
           style={{
             display: "flex",
-            gap,
+            gap: GAP,
             paddingLeft: 24,
             paddingRight: 24,
-            transform: `translateX(calc(${-active * (cardW + gap)}px + ${dragOffset}px))`,
-            transition:
-              isAnimating || (!dragging.current && dragOffset === 0)
-                ? "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)"
-                : "none",
+            transform: `translateX(calc(${-active * CARD_STEP}px + ${dragOffset}px))`,
+            transition: transitioning ? "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
             cursor: "grab",
             userSelect: "none",
           }}
         >
-          {favorites.map((r, i) => (
-            <FavoriteCard
-              key={r.id}
-              recipe={r}
-              active={i === active}
-              onSelect={onSelect}
-              dragDelta={dragDelta}
-            />
-          ))}
+          {loopSlides.map((slide, i) => {
+            const isActive = i === active;
+            return slide.type === "recipe" ? (
+              <FavoriteCard
+                key={`${Math.floor(i / n)}-${slide.id}`}
+                recipe={slide.recipe}
+                active={isActive}
+                onSelect={onSelect}
+                dragDelta={dragDelta}
+              />
+            ) : (
+              <PlaceholderFavoriteCard
+                key={`${Math.floor(i / n)}-${slide.id}`}
+                active={isActive}
+                onAddNew={onAddNew}
+                dragDelta={dragDelta}
+              />
+            );
+          })}
         </div>
       </div>
 
       <div style={{ display: "flex", justifyContent: "center", gap: 6 }}>
-        {favorites.map((_, i) => (
+        {baseSlides.map((_, i) => (
           <button
             key={i}
-            onClick={() => goTo(i)}
+            onClick={() => goTo(active + (i - activeDot))}
             style={{
-              width: i === active ? 20 : 6,
+              width: i === activeDot ? 20 : 6,
               height: 6,
               borderRadius: 999,
-              background: i === active ? "var(--fire)" : "var(--border)",
+              background: i === activeDot ? "var(--fire)" : "var(--border)",
               transition: "all 0.25s ease",
               padding: 0,
             }}
@@ -317,6 +365,8 @@ function FavoritesCarousel({ favorites, onSelect }) {
   );
 }
 
+// Read-only preview card — same look as the Recipes grid card, minus the
+// favorite/edit/delete controls, since this is just a tap-to-view shortcut.
 function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
   return (
     <div
@@ -325,53 +375,73 @@ function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
         onSelect(recipe);
       }}
       style={{
-        minWidth: 280,
-        width: 280,
-        borderRadius: "var(--r-lg)",
-        background: recipe.color,
-        cursor: "pointer",
+        minWidth: CARD_W, width: CARD_W,
+        background: "white", borderRadius: "var(--r-lg)",
+        cursor: "pointer", overflow: "hidden",
         boxShadow: active ? "var(--shadow-lg)" : "var(--shadow-sm)",
         transform: active ? "scale(1.02)" : "scale(0.96)",
         transition: "transform 0.3s ease, box-shadow 0.3s ease",
-        overflow: "hidden",
         flexShrink: 0,
       }}
     >
-      <div style={{ padding: "28px 22px 22px" }}>
-        <div style={{
-          fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
-          textTransform: "uppercase", color: "rgba(255,255,255,0.7)", marginBottom: 8,
-        }}>
-          {recipe.category}
-        </div>
-        <h3 style={{
-          fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 700,
-          color: "white", lineHeight: 1.1, marginBottom: 12,
-          textShadow: "0 1px 6px rgba(0,0,0,0.2)",
-        }}>
-          {recipe.name}
-        </h3>
-        <StarRating rating={recipe.rating || 0} size="sm" />
+      {/* Color swatch */}
+      <div style={{ height: 110, background: recipe.color, display: "flex", alignItems: "flex-end", padding: 12 }}>
+        <span style={{
+          fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em",
+          background: "rgba(255,255,255,0.22)", backdropFilter: "blur(4px)",
+          color: "white", padding: "3px 8px", borderRadius: 999,
+        }}>{recipe.category}</span>
       </div>
 
-      <div style={{
-        background: "rgba(0,0,0,0.18)", padding: "12px 22px",
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-      }}>
-        <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>
-          ⏱ {formatTime(recipe.prepTime, recipe.cookTime)}
-        </span>
-        <div style={{ display: "flex", gap: 5 }}>
-          {(recipe.tags || []).slice(0, 2).map(t => (
+      <div style={{ padding: "14px 16px 16px" }}>
+        <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16.5, fontWeight: 600, color: "var(--ink)", marginBottom: 8, lineHeight: 1.3 }}>
+          {recipe.name}
+        </h3>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 9 }}>
+          <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>⏱ {formatTime(recipe.prepTime, recipe.cookTime)}</span>
+          <StarRating rating={recipe.rating || 0} size="sm" />
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+          {(recipe.tags || []).slice(0, 3).map(t => (
             <span key={t} style={{
               fontSize: 10.5, padding: "2px 8px", borderRadius: 999,
-              background: "rgba(255,255,255,0.2)", color: "white", fontWeight: 500,
-            }}>
-              {t}
-            </span>
+              background: "var(--surface)", color: "var(--ink-soft)",
+              border: "1px solid var(--border)", fontWeight: 500,
+            }}>{t}</span>
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Filler card shown when there aren't enough favorites to fill the loop —
+// keeps the carousel feeling continuous instead of stopping short.
+function PlaceholderFavoriteCard({ active, onAddNew, dragDelta }) {
+  return (
+    <div
+      onClick={() => {
+        if (Math.abs(dragDelta.current) > 5) return;
+        onAddNew?.();
+      }}
+      style={{
+        minWidth: CARD_W, width: CARD_W, minHeight: 226,
+        borderRadius: "var(--r-lg)",
+        background: "var(--surface)",
+        border: "2px dashed var(--border)",
+        cursor: "pointer",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        gap: 10, padding: "28px 22px", textAlign: "center",
+        boxShadow: active ? "var(--shadow-md)" : "none",
+        transform: active ? "scale(1.02)" : "scale(0.96)",
+        transition: "transform 0.3s ease, box-shadow 0.3s ease",
+        flexShrink: 0,
+      }}
+    >
+      <span style={{ fontSize: 26, color: "var(--ink-faint)" }}>♡</span>
+      <p style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink-soft)", lineHeight: 1.4 }}>
+        Click to add<br />new favorite
+      </p>
     </div>
   );
 }
@@ -473,7 +543,7 @@ export default function HomeScreen({ recipes, onGoToRecipes, onNewRecipe, onAddT
       <div style={{ padding: "28px 24px", display: "flex", flexDirection: "column", gap: 32 }}>
         {/* Favorites carousel — card tap opens preview sheet */}
         {favorites.length > 0 ? (
-          <FavoritesCarousel favorites={favorites} onSelect={setPreviewRecipe} />
+          <FavoritesCarousel favorites={favorites} onSelect={setPreviewRecipe} onAddNew={onNewRecipe} />
         ) : (
           <div style={{
             background: "var(--surface)", borderRadius: "var(--r-lg)",
