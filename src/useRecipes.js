@@ -211,8 +211,58 @@ export function formatTime(prepTime, cookTime) {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+// Unique-enough id for client-side list items (ingredients, steps, sub-steps).
+// Only ever used as a React key / equality check — never parsed or displayed —
+// so the exact format doesn't matter, just that it's unique per call.
+function genId(prefix) {
+  return `${prefix}${Date.now()}${Math.random()}`;
+}
+
 export function newIngredient() {
-  return { id: `i${Date.now()}${Math.random()}`, amount: "", unit: "cup", name: "" };
+  return { id: genId("i"), amount: "", unit: "cup", name: "" };
+}
+
+// Steps support multiple parts: Step 1, 1a, 1b, 1c, Step 2, 2a, 2b …
+// Shape: { id, text, substeps: [{ id, text }] }
+export function newStep() {
+  return { id: genId("step"), text: "", substeps: [] };
+}
+
+export function newSubstep() {
+  return { id: genId("sub"), text: "" };
+}
+
+// a, b, c … z, then a safety fallback past 26 sub-steps
+export function subLetter(idx) {
+  return idx < 26 ? String.fromCharCode(97 + idx) : `s${idx + 1}`;
+}
+
+// Accepts legacy flat-string steps, legacy string sub-steps, or the current
+// { id, text, substeps } shape — always returns the latter (ids filled in
+// where missing) so the form can edit any previously-saved recipe.
+export function normalizeSteps(steps) {
+  if (!steps || !steps.length) return [newStep()];
+  return steps.map(s => {
+    if (typeof s === "string") return { id: genId("step"), text: s, substeps: [] };
+    return {
+      id: s.id || genId("step"),
+      text: s.text || "",
+      substeps: (s.substeps || []).map(sub =>
+        typeof sub === "string"
+          ? { id: genId("sub"), text: sub }
+          : { id: sub.id || genId("sub"), text: sub.text || "" }
+      ),
+    };
+  });
+}
+
+// Read-only flattening for display — tolerates the same legacy shapes.
+export function stepsForDisplay(steps) {
+  return (steps || [])
+    .map(s => typeof s === "string"
+      ? { text: s, substeps: [] }
+      : { text: s.text || "", substeps: (s.substeps || []).map(sub => typeof sub === "string" ? sub : (sub.text || "")) })
+    .filter(s => s.text || s.substeps.some(t => t));
 }
 
 export function useRecipes() {

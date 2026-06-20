@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   UNITS, CATEGORY_OPTIONS, CARD_COLORS,
   formatIngredient, formatTime, newIngredient,
+  newStep, newSubstep, subLetter, normalizeSteps, stepsForDisplay,
 } from "./useRecipes";
 
 // ── Toast notifications ─────────────────────────────────────────────────────
@@ -25,7 +26,7 @@ export function ToastHost() {
   const [toasts, setToasts] = useState([]);
 
   useEffect(() => subscribeToast((message) => {
-    const id = genId("toast");
+    const id = `toast${Date.now()}${Math.random()}`;
     setToasts(t => [...t, { id, message, leaving: false }]);
     setTimeout(() => {
       setToasts(t => t.map(x => x.id === id ? { ...x, leaving: true } : x));
@@ -69,50 +70,6 @@ export function ToastHost() {
   );
 }
 
-// ── Step / sub-step helpers ─────────────────────────────────────────────────
-// Steps now support parts: Step 1, 1a, 1b, 1c, Step 2, 2a, 2b …
-// Shape: { id, text, substeps: [{ id, text }] }
-function genId(prefix) {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) return `${prefix}-${crypto.randomUUID()}`;
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-function newStep() {
-  return { id: genId("step"), text: "", substeps: [] };
-}
-function newSubstep() {
-  return { id: genId("sub"), text: "" };
-}
-// a, b, c … z, then a safety fallback past 26 sub-steps
-function subLetter(idx) {
-  return idx < 26 ? String.fromCharCode(97 + idx) : `s${idx + 1}`;
-}
-// Accepts legacy flat-string steps, legacy string sub-steps, or the current
-// { id, text, substeps } shape — always returns the latter (ids filled in
-// where missing) so the form can edit any previously-saved recipe.
-function normalizeSteps(steps) {
-  if (!steps || !steps.length) return [newStep()];
-  return steps.map(s => {
-    if (typeof s === "string") return { id: genId("step"), text: s, substeps: [] };
-    return {
-      id: s.id || genId("step"),
-      text: s.text || "",
-      substeps: (s.substeps || []).map(sub =>
-        typeof sub === "string"
-          ? { id: genId("sub"), text: sub }
-          : { id: sub.id || genId("sub"), text: sub.text || "" }
-      ),
-    };
-  });
-}
-// Read-only flattening for display — tolerates the same legacy shapes.
-function stepsForDisplay(steps) {
-  return (steps || [])
-    .map(s => typeof s === "string"
-      ? { text: s, substeps: [] }
-      : { text: s.text || "", substeps: (s.substeps || []).map(sub => typeof sub === "string" ? sub : (sub.text || "")) })
-    .filter(s => s.text || s.substeps.some(t => t));
-}
-
 // ── Star Rating ───────────────────────────────────────────────────────────────
 export function StarRating({ rating, interactive = false, onChange, size = "md" }) {
   const [hover, setHover] = useState(0);
@@ -135,6 +92,49 @@ export function StarRating({ rating, interactive = false, onChange, size = "md" 
         >★</span>
       ))}
     </div>
+  );
+}
+
+// ── Step list (numbered steps + lettered sub-steps) ─────────────────────────
+// Shared between RecipeDetail (here) and HomeScreen's read-only preview sheet,
+// so the two read-only views of a recipe's steps can't drift out of sync.
+export function StepList({ steps }) {
+  return (
+    <ol style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {stepsForDisplay(steps).map((step, i) => (
+        <li key={i} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <span style={{
+              width: 24, height: 24, borderRadius: "50%",
+              background: "var(--fire-dim)", color: "var(--fire)",
+              fontSize: 12, fontWeight: 700,
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>{i + 1}</span>
+            {step.text && (
+              <p style={{ fontSize: 13.5, color: "var(--ink)", lineHeight: 1.55, paddingTop: 2 }}>{step.text}</p>
+            )}
+          </div>
+          {step.substeps.length > 0 && (
+            <ul style={{
+              display: "flex", flexDirection: "column", gap: 10,
+              marginLeft: 12, paddingLeft: 16, borderLeft: "2px solid var(--border)",
+            }}>
+              {step.substeps.map((subText, j) => (
+                <li key={j} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <span style={{
+                    width: 22, height: 22, borderRadius: "50%",
+                    background: "white", border: "1.5px solid var(--fire-dim)", color: "var(--fire)",
+                    fontSize: 11, fontWeight: 700,
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>{i + 1}{subLetter(j)}</span>
+                  <p style={{ fontSize: 13.5, color: "var(--ink)", lineHeight: 1.55, paddingTop: 1 }}>{subText}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -376,43 +376,7 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
           </div>
         )}
 
-        {activeTab === "steps" && (
-          <ol style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            {stepsForDisplay(recipe.steps).map((step, i) => (
-              <li key={i} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <span style={{
-                    width: 24, height: 24, borderRadius: "50%",
-                    background: "var(--fire-dim)", color: "var(--fire)",
-                    fontSize: 12, fontWeight: 700,
-                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                  }}>{i + 1}</span>
-                  {step.text && (
-                    <p style={{ fontSize: 13.5, color: "var(--ink)", lineHeight: 1.55, paddingTop: 2 }}>{step.text}</p>
-                  )}
-                </div>
-                {step.substeps.length > 0 && (
-                  <ul style={{
-                    display: "flex", flexDirection: "column", gap: 10,
-                    marginLeft: 12, paddingLeft: 16, borderLeft: "2px solid var(--border)",
-                  }}>
-                    {step.substeps.map((subText, j) => (
-                      <li key={j} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <span style={{
-                          width: 22, height: 22, borderRadius: "50%",
-                          background: "white", border: "1.5px solid var(--fire-dim)", color: "var(--fire)",
-                          fontSize: 11, fontWeight: 700,
-                          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                        }}>{i + 1}{subLetter(j)}</span>
-                        <p style={{ fontSize: 13.5, color: "var(--ink)", lineHeight: 1.55, paddingTop: 1 }}>{subText}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ol>
-        )}
+        {activeTab === "steps" && <StepList steps={recipe.steps} />}
 
         {activeTab === "notes" && (
           <ul style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -586,7 +550,7 @@ export function RecipeForm({ initial, onSave, onCancel }) {
         .map(i => ({ ...i, amount: parseAmount(i.amount) })),
       steps: cleanSteps,
     });
-    showToast(`${recipeName} has been successfully ${initial ? "saved" : "created"}`);
+    showToast(`"${recipeName}" successfully ${initial ? "saved" : "created"}`);
   };
 
   const inputStyle = (err) => ({

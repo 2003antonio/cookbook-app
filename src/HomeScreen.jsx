@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { StarRating } from "./components.jsx";
+import { StarRating, StepList } from "./components.jsx";
 import { formatTime, formatIngredient } from "./useRecipes";
 
 function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
@@ -238,28 +238,7 @@ function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
             </ul>
           )}
 
-          {activeTab === "steps" && (
-            <ol style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {(recipe.steps || []).map((step, i) => (
-                <li key={i} style={{ display: "flex", gap: 12 }}>
-                  <span style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    background: "var(--fire-dim)",
-                    color: "var(--fire)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 700,
-                  }}>
-                    {i + 1}
-                  </span>
-                  <p>{step}</p>
-                </li>
-              ))}
-            </ol>
-          )}
+          {activeTab === "steps" && <StepList steps={recipe.steps} />}
 
           {activeTab === "notes" && (
             <ul style={{ display: "flex", flexDirection: "column", gap: 10 }}>
