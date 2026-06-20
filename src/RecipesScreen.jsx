@@ -103,8 +103,8 @@ function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAd
   const handleTouchEnd = () => {
     setIsDragging(false);
 
-    // If pulled down more than 250px, close it. Otherwise, reset.
-    if (dragY > 250) {
+    // If pulled down more than 200px, close it. Otherwise, reset.
+    if (dragY > 200) {
       onClose();
     }
     setDragY(0);
@@ -122,7 +122,7 @@ function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAd
 
       <div style={{
         position: "fixed", left: 0, right: 0, bottom: 0,
-        height: "88vh", background: "white",
+        height: "92vh", background: "white",
         borderRadius: "24px 24px 0 0",
         boxShadow: "0 -8px 40px rgba(0,0,0,0.15)",
         zIndex: 91, overflow: "hidden",
