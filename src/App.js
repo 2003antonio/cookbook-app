@@ -4,15 +4,20 @@ import { RecipeForm, ToastHost } from "./components.jsx";
 import HomeScreen from "./HomeScreen.jsx";
 import RecipesScreen from "./RecipesScreen.jsx";
 import ShoppingScreen from "./ShoppingScreen.jsx";
+import { useAuth } from "./useAuth";
 import "./tokens.css";
 
 // ── Bottom Nav ────────────────────────────────────────────────────────────────
+const NAV_TABS = [
+  { id: "home", label: "Home", icon: "⌂" },
+  { id: "recipes", label: "Recipes", icon: "📖" },
+  { id: "shopping", label: "Shopping", icon: "🛒" },
+];
+
 function BottomNav({ active, onChange, shoppingCount }) {
-  const tabs = [
-    { id: "home", label: "Home", icon: "⌂" },
-    { id: "recipes", label: "Recipes", icon: "📖" },
-    { id: "shopping", label: "Shopping", icon: "🛒", badge: shoppingCount },
-  ];
+  const tabs = NAV_TABS.map(tab =>
+    tab.id === "shopping" ? { ...tab, badge: shoppingCount } : tab
+  );
 
   return (
     <nav style={{
@@ -66,8 +71,10 @@ function BottomNav({ active, onChange, shoppingCount }) {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { recipes, addRecipe, updateRecipe, deleteRecipe, toggleFavorite } = useRecipes();
-  const { items: shoppingItems, addItem, toggleItem, removeItem, clearChecked, addFromRecipe } = useShoppingList();
+  const { session } = useAuth();
+  const userId = session?.user?.id ?? null;
+  const { recipes, addRecipe, updateRecipe, deleteRecipe, toggleFavorite } = useRecipes(userId);
+  const { items: shoppingItems, addItem, toggleItem, removeItem, clearChecked, addFromRecipe } = useShoppingList(userId);
 
   const [tab, setTab] = useState("home");
   const [selectedRecipe, setSelectedRecipe] = useState(null);
@@ -99,11 +106,22 @@ export default function App() {
     setTab("recipes");
   };
 
+  // Jump straight to a specific recipe's detail sheet on the Recipes tab
+  // (used by Home's "Recent" row, where the user already knows which one they want)
+  const handleOpenRecipe = (recipe) => {
+    setRecipesFilter("All");
+    setSelectedRecipe(recipe);
+    setTab("recipes");
+  };
+
   const handleAddToShopping = (recipe) => {
     addFromRecipe(recipe);
   };
 
   const uncheckedCount = shoppingItems.filter(i => !i.checked).length;
+  // True only while editing an *existing* recipe (not the blank "new recipe" form),
+  // so the detail sheet underneath can't be swiped away mid-edit.
+  const isEditingRecipe = formState !== null && formState !== "new";
 
   return (
     <div style={{
@@ -116,7 +134,10 @@ export default function App() {
           <HomeScreen
             recipes={recipes}
             onGoToRecipes={handleGoToRecipes}
+            onOpenRecipe={handleOpenRecipe}
             onNewRecipe={() => setFormState("new")}
+            onToggleFavorite={toggleFavorite}
+            onAddToShopping={handleAddToShopping}
           />
         )}
 
@@ -132,6 +153,7 @@ export default function App() {
             onAddToShopping={handleAddToShopping}
             onNewRecipe={() => setFormState("new")}
             initialFilter={recipesFilter}
+            isEditing={isEditingRecipe}
           />
         )}
 

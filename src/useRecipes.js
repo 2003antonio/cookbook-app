@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-
-const STORAGE_KEY = "mise_en_place_v2";
+import { supabase } from "./supabaseClient";
 
 const SEED_RECIPES = [
   {
@@ -265,86 +264,300 @@ export function stepsForDisplay(steps) {
     .filter(s => s.text || s.substeps.some(t => t));
 }
 
-export function useRecipes() {
-  const [recipes, setRecipes] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.length > 0) return parsed;
-      }
-    } catch (e) { }
-    return SEED_RECIPES;
-  });
+// ── Supabase row <-> app shape mapping ──────────────────────────────────────
+// Only these fields are ever written to the `recipes` table. Building the
+// row from this map (rather than spreading the whole object) means partial
+// `updates` objects only touch the columns that actually changed — any key
+// not present on the input is simply omitted (JSON.stringify drops
+// `undefined` values), so a `{ favorite: true }` update never clobbers name,
+// ingredients, etc. with null.
+const RECIPE_FIELD_MAP = {
+  name: "name",
+  category: "category",
+  prepTime: "prep_time",
+  cookTime: "cook_time",
+  baseServings: "base_servings",
+  color: "color",
+  rating: "rating",
+  tags: "tags",
+  favorite: "favorite",
+  notes: "notes",
+  ingredients: "ingredients",
+  steps: "steps",
+};
 
+function recipeToRow(recipe) {
+  const row = {};
+  for (const [jsKey, dbKey] of Object.entries(RECIPE_FIELD_MAP)) {
+    if (recipe[jsKey] !== undefined) row[dbKey] = recipe[jsKey];
+  }
+  return row;
+}
+
+function rowToRecipe(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    prepTime: row.prep_time,
+    cookTime: row.cook_time,
+    baseServings: row.base_servings,
+    color: row.color,
+    rating: row.rating,
+    tags: row.tags || [],
+    favorite: row.favorite,
+    notes: row.notes,
+    ingredients: row.ingredients || [],
+    steps: row.steps || [],
+    createdAt: row.created_at ? Date.parse(row.created_at) : Date.now(),
+    updatedAt: row.updated_at ? Date.parse(row.updated_at) : undefined,
+  };
+}
+
+function rowToItem(row) {
+  return {
+    id: row.id,
+    text: row.text,
+    checked: row.checked,
+    fromRecipe: row.from_recipe || undefined,
+  };
+}
+
+export function useRecipes(userId) {
+  const [recipes, setRecipes] = useState(SEED_RECIPES);
+  const [loading, setLoading] = useState(false);
+
+  // Reload from Supabase whenever the signed-in user changes.
+  // Signed out -> back to the read-only demo set, nothing persisted.
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes)); } catch (e) { }
-  }, [recipes]);
+    let cancelled = false;
 
+    if (!userId) {
+      setRecipes(SEED_RECIPES);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    supabase
+      .from("recipes")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        setLoading(false);
+        if (error) {
+          console.error("Failed to load recipes:", error.message);
+          setRecipes([]);
+          return;
+        }
+        setRecipes((data || []).map(rowToRecipe));
+      });
+
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  // Local state always updates immediately (optimistic); the Supabase call
+  // fires in the background and rolls back local state on failure. When
+  // signed out, this is just in-memory demo editing — nothing to sync.
   const addRecipe = useCallback((recipe) => {
-    const r = { ...recipe, id: String(Date.now()), createdAt: Date.now(), favorite: false };
+    const id = crypto.randomUUID();
+    const r = { ...recipe, id, createdAt: Date.now(), favorite: false };
     setRecipes(prev => [r, ...prev]);
+
+    if (userId) {
+      supabase
+        .from("recipes")
+        .insert({ id, user_id: userId, ...recipeToRow(r) })
+        .then(({ error }) => {
+          if (error) {
+            console.error("Failed to save recipe:", error.message);
+            setRecipes(prev => prev.filter(x => x.id !== id));
+          }
+        });
+    }
+
     return r;
-  }, []);
+  }, [userId]);
 
   const updateRecipe = useCallback((id, updates) => {
     setRecipes(prev => prev.map(r => r.id === id ? { ...r, ...updates, updatedAt: Date.now() } : r));
-  }, []);
+
+    if (!userId) return;
+
+    supabase
+      .from("recipes")
+      .update({ ...recipeToRow(updates), updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .then(({ error }) => {
+        if (error) console.error("Failed to update recipe:", error.message);
+      });
+  }, [userId]);
 
   const deleteRecipe = useCallback((id) => {
-    setRecipes(prev => prev.filter(r => r.id !== id));
-  }, []);
+    let removed;
+    setRecipes(prev => {
+      removed = prev.find(r => r.id === id);
+      return prev.filter(r => r.id !== id);
+    });
+
+    if (!userId) return;
+
+    supabase.from("recipes").delete().eq("id", id).then(({ error }) => {
+      if (error) {
+        console.error("Failed to delete recipe:", error.message);
+        if (removed) setRecipes(prev => [removed, ...prev]);
+      }
+    });
+  }, [userId]);
 
   const toggleFavorite = useCallback((id) => {
-    setRecipes(prev => prev.map(r => r.id === id ? { ...r, favorite: !r.favorite } : r));
-  }, []);
+    let nextFavorite;
+    setRecipes(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      nextFavorite = !r.favorite;
+      return { ...r, favorite: nextFavorite };
+    }));
 
-  return { recipes, addRecipe, updateRecipe, deleteRecipe, toggleFavorite };
+    if (!userId) return;
+
+    supabase.from("recipes").update({ favorite: nextFavorite }).eq("id", id).then(({ error }) => {
+      if (error) {
+        console.error("Failed to update favorite:", error.message);
+        setRecipes(prev => prev.map(r => r.id === id ? { ...r, favorite: !nextFavorite } : r));
+      }
+    });
+  }, [userId]);
+
+  return { recipes, addRecipe, updateRecipe, deleteRecipe, toggleFavorite, loading };
 }
 
 // Shopping list hook
-const SHOPPING_KEY = "mise_shopping_v2";
+export function useShoppingList(userId) {
+  const [items, setItems] = useState([]);
 
-export function useShoppingList() {
-  const [items, setItems] = useState(() => {
-    try {
-      const s = localStorage.getItem(SHOPPING_KEY);
-      return s ? JSON.parse(s) : [];
-    } catch (e) { return []; }
-  });
-
+  // Signed out -> empty list, nothing persisted.
   useEffect(() => {
-    try { localStorage.setItem(SHOPPING_KEY, JSON.stringify(items)); } catch (e) { }
-  }, [items]);
+    let cancelled = false;
+
+    if (!userId) {
+      setItems([]);
+      return;
+    }
+
+    supabase
+      .from("shopping_items")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.error("Failed to load shopping list:", error.message);
+          setItems([]);
+          return;
+        }
+        setItems((data || []).map(rowToItem));
+      });
+
+    return () => { cancelled = true; };
+  }, [userId]);
 
   const addItem = useCallback((text) => {
     if (!text.trim()) return;
-    setItems(prev => [...prev, { id: Date.now(), text: text.trim(), checked: false }]);
-  }, []);
+    const id = crypto.randomUUID();
+    const item = { id, text: text.trim(), checked: false };
+    setItems(prev => [...prev, item]);
+
+    if (!userId) return;
+
+    supabase.from("shopping_items").insert({ id, user_id: userId, text: item.text, checked: false })
+      .then(({ error }) => {
+        if (error) {
+          console.error("Failed to add shopping item:", error.message);
+          setItems(prev => prev.filter(i => i.id !== id));
+        }
+      });
+  }, [userId]);
 
   const toggleItem = useCallback((id) => {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, checked: !i.checked } : i));
-  }, []);
+    let nextChecked;
+    setItems(prev => prev.map(i => {
+      if (i.id !== id) return i;
+      nextChecked = !i.checked;
+      return { ...i, checked: nextChecked };
+    }));
+
+    if (!userId) return;
+
+    supabase.from("shopping_items").update({ checked: nextChecked }).eq("id", id)
+      .then(({ error }) => {
+        if (error) {
+          console.error("Failed to update shopping item:", error.message);
+          setItems(prev => prev.map(i => i.id === id ? { ...i, checked: !nextChecked } : i));
+        }
+      });
+  }, [userId]);
 
   const removeItem = useCallback((id) => {
-    setItems(prev => prev.filter(i => i.id !== id));
-  }, []);
+    let removed;
+    setItems(prev => {
+      removed = prev.find(i => i.id === id);
+      return prev.filter(i => i.id !== id);
+    });
+
+    if (!userId) return;
+
+    supabase.from("shopping_items").delete().eq("id", id)
+      .then(({ error }) => {
+        if (error) {
+          console.error("Failed to remove shopping item:", error.message);
+          if (removed) setItems(prev => [...prev, removed]);
+        }
+      });
+  }, [userId]);
 
   const clearChecked = useCallback(() => {
-    setItems(prev => prev.filter(i => !i.checked));
-  }, []);
+    let removedIds = [];
+    setItems(prev => {
+      removedIds = prev.filter(i => i.checked).map(i => i.id);
+      return prev.filter(i => !i.checked);
+    });
+
+    if (!userId || removedIds.length === 0) return;
+
+    supabase.from("shopping_items").delete().in("id", removedIds)
+      .then(({ error }) => {
+        if (error) console.error("Failed to clear checked items:", error.message);
+      });
+  }, [userId]);
 
   const addFromRecipe = useCallback((recipe) => {
     const newItems = recipe.ingredients
       .filter(ing => ing.name.trim())
       .map(ing => ({
-        id: Date.now() + Math.random(),
+        id: crypto.randomUUID(),
         text: formatIngredient(ing),
         checked: false,
         fromRecipe: recipe.name,
       }));
+    if (!newItems.length) return;
+
     setItems(prev => [...prev, ...newItems]);
-  }, []);
+
+    if (!userId) return;
+
+    supabase.from("shopping_items").insert(
+      newItems.map(i => ({ id: i.id, user_id: userId, text: i.text, checked: false, from_recipe: i.fromRecipe }))
+    ).then(({ error }) => {
+      if (error) {
+        console.error("Failed to add ingredients to shopping list:", error.message);
+        const ids = new Set(newItems.map(i => i.id));
+        setItems(prev => prev.filter(i => !ids.has(i.id)));
+      }
+    });
+  }, [userId]);
 
   return { items, addItem, toggleItem, removeItem, clearChecked, addFromRecipe };
 }
