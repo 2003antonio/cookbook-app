@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { useRecipes, useShoppingList } from "./useRecipes";
-import { RecipeForm, ToastHost } from "./components.jsx";
-import HomeScreen from "./HomeScreen.jsx";
-import RecipesScreen from "./RecipesScreen.jsx";
-import ShoppingScreen from "./ShoppingScreen.jsx";
-import { useAuth } from "./useAuth";
-import "./tokens.css";
+import { useRecipes, useShoppingList } from "./hooks/useRecipes";
+import { RecipeForm }  from "./components/recipe/RecipeForm";
+import { ToastHost }   from "./components/ui/ToastHost";
+import HomeScreen      from "./screens/HomeScreen";
+import RecipesScreen   from "./screens/RecipesScreen";
+import ShoppingScreen  from "./screens/ShoppingScreen";
+import { useAuth }     from "./hooks/useAuth";
+import "./style/tokens.css";
 
 // ── Bottom Nav ────────────────────────────────────────────────────────────────
 const NAV_TABS = [
-  { id: "home", label: "Home", icon: "⌂" },
-  { id: "recipes", label: "Recipes", icon: "📖" },
+  { id: "home",     label: "Home",     icon: "⌂"  },
+  { id: "recipes",  label: "Recipes",  icon: "📖" },
   { id: "shopping", label: "Shopping", icon: "🛒" },
 ];
 
@@ -46,7 +47,6 @@ function BottomNav({ active, onChange, shoppingCount }) {
               height: 2.5, background: "var(--fire)", borderRadius: "0 0 3px 3px",
             }} />
           )}
-
           <div style={{ position: "relative" }}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>{tab.icon}</span>
             {tab.badge > 0 && (
@@ -73,13 +73,14 @@ function BottomNav({ active, onChange, shoppingCount }) {
 export default function App() {
   const { session } = useAuth();
   const userId = session?.user?.id ?? null;
+
   const { recipes, addRecipe, updateRecipe, deleteRecipe, toggleFavorite } = useRecipes(userId);
   const { items: shoppingItems, addItem, toggleItem, removeItem, clearChecked, addFromRecipe } = useShoppingList(userId);
 
-  const [tab, setTab] = useState("home");
+  const [tab,            setTab]            = useState("home");
   const [selectedRecipe, setSelectedRecipe] = useState(null);
-  const [formState, setFormState] = useState(null);
-  const [recipesFilter, setRecipesFilter] = useState("All");
+  const [formState,      setFormState]      = useState(null);
+  const [recipesFilter,  setRecipesFilter]  = useState("All");
 
   const handleSave = (data) => {
     if (formState === "new") {
@@ -107,20 +108,17 @@ export default function App() {
   };
 
   // Jump straight to a specific recipe's detail sheet on the Recipes tab
-  // (used by Home's "Recent" row, where the user already knows which one they want)
+  // (used by Home's "Recent" row)
   const handleOpenRecipe = (recipe) => {
     setRecipesFilter("All");
     setSelectedRecipe(recipe);
     setTab("recipes");
   };
 
-  const handleAddToShopping = (recipe) => {
-    addFromRecipe(recipe);
-  };
-
   const uncheckedCount = shoppingItems.filter(i => !i.checked).length;
-  // True only while editing an *existing* recipe (not the blank "new recipe" form),
-  // so the detail sheet underneath can't be swiped away mid-edit.
+
+  // True only while editing an existing recipe so the detail sheet underneath
+  // can't be swiped away mid-edit.
   const isEditingRecipe = formState !== null && formState !== "new";
 
   return (
@@ -137,7 +135,7 @@ export default function App() {
             onOpenRecipe={handleOpenRecipe}
             onNewRecipe={() => setFormState("new")}
             onToggleFavorite={toggleFavorite}
-            onAddToShopping={handleAddToShopping}
+            onAddToShopping={addFromRecipe}
           />
         )}
 
@@ -147,10 +145,10 @@ export default function App() {
             onSelectRecipe={setSelectedRecipe}
             selectedRecipe={selectedRecipe}
             onCloseDetail={() => setSelectedRecipe(null)}
-            onEdit={(r) => setFormState(r)}
+            onEdit={r => setFormState(r)}
             onDelete={handleDelete}
             onToggleFavorite={toggleFavorite}
-            onAddToShopping={handleAddToShopping}
+            onAddToShopping={addFromRecipe}
             onNewRecipe={() => setFormState("new")}
             initialFilter={recipesFilter}
             isEditing={isEditingRecipe}
@@ -165,14 +163,14 @@ export default function App() {
             onRemove={removeItem}
             onClearChecked={clearChecked}
             recipes={recipes}
-            onAddFromRecipe={handleAddToShopping}
+            onAddFromRecipe={addFromRecipe}
           />
         )}
       </div>
 
       <BottomNav
         active={tab}
-        onChange={(t) => {
+        onChange={t => {
           setTab(t);
           if (t !== "recipes") setSelectedRecipe(null);
           if (t === "recipes") setRecipesFilter("All");

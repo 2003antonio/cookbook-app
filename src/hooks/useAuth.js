@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabaseClient";
+import { supabase } from "../services/supabaseClient";
 
 // session === undefined  -> still checking for an existing session
 // session === null       -> checked, nobody is signed in

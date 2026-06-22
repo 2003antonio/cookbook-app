@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { supabase } from "./supabaseClient";
-import AuthModal from "./AuthModal.jsx";
+import { supabase } from "../../services/supabaseClient";
+import AuthModal  from "./AuthModal";
 
 const AVATAR_SIZE = 38;
 

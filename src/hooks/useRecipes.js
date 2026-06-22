@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "./supabaseClient";
+import { supabase } from "../services/supabaseClient";
 
 const SEED_RECIPES = [
   {
@@ -620,6 +620,5 @@ export function useShoppingList(userId) {
       }
     });
   }, [userId]);
-
   return { items, addItem, toggleItem, removeItem, clearChecked, addFromRecipe };
 }
