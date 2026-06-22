@@ -142,6 +142,68 @@ const SEED_RECIPES = [
     ],
     createdAt: Date.now(),
   },
+
+  {
+  id: "7",
+  name: "Vermont Cheddar Cheese Soup",
+  category: "Soup",
+  prepTime: 15,
+  cookTime: 30,
+  baseServings: 4,
+  color: "#F4A261",
+  rating: 5,
+  tags: ["Soup", "Cheddar", "Comfort Food"],
+  favorite: false,
+  notes: "Do not let the soup exceed 160°F after adding cheese or it may separate.",
+  ingredients: [
+    { id: "i1", amount: 3, unit: "tbsp", name: "butter" },
+    { id: "i2", amount: 0.75, unit: "cup", name: "minced yellow onion" },
+    { id: "i3", amount: 0.25, unit: "cup", name: "minced celery" },
+    { id: "i4", amount: 0.5, unit: "cup", name: "minced carrot" },
+    { id: "i5", amount: 0.5, unit: "cup", name: "chopped tart apple" },
+    { id: "i6", amount: 3, unit: "cup", name: "poultry stock" },
+    { id: "i7", amount: 1, unit: "cup", name: "medium-chopped russet potatoes" },
+    { id: "i8", amount: 1, unit: "whole", name: "bay leaf" },
+    { id: "i9", amount: 1, unit: "tsp", name: "fresh thyme" },
+    { id: "i10", amount: 1, unit: "pinch", name: "kosher salt" },
+    { id: "i11", amount: 1, unit: "tsp", name: "fresh lemon juice" },
+    { id: "i12", amount: 1, unit: "cup", name: "grated Vermont cheddar cheese" }
+  ],
+  steps: [
+    {
+      id: "s1",
+      text: "Melt butter in a saucepan and sweat onion, celery, carrot, and apple until soft.",
+      substeps: []
+    },
+    {
+      id: "s2",
+      text: "Add poultry stock, potatoes, bay leaf, and thyme. Simmer until vegetables are very soft.",
+      substeps: []
+    },
+    {
+      id: "s3",
+      text: "Remove bay leaf and thyme, then puree the soup.",
+      substeps: [
+        { id: "s3a", text: "Use an immersion blender if available." },
+        { id: "s3b", text: "Otherwise blend in batches and return to pot." }
+      ]
+    },
+    {
+      id: "s4",
+      text: "Return soup to low heat and thin with additional stock if needed.",
+      substeps: []
+    },
+    {
+      id: "s5",
+      text: "Add lemon juice, then whisk in cheddar cheese until smooth.",
+      substeps: [
+        { id: "s5a", text: "Do not exceed 160°F after adding cheese." }
+      ]
+    }
+  ],
+  createdAt: Date.now() - 500
+}
+
 ];
 
 export const UNITS = [
