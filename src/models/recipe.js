@@ -1,28 +1,49 @@
 // ── Recipe Model ──────────────────────────────────────────────────────────────
-// Single source of truth for what a recipe is:
-//   - Available field options (units, categories, colors)
-//   - Default/blank values
-//   - Factory functions for ingredients, steps, substeps
-//   - Formatting helpers
-//   - Step normalization (handles legacy string steps)
+// Single source of truth for what a recipe is.
+//
+// SHAPE OVERVIEW
+// ──────────────
+// A recipe is made of one or more Components. Each component is a self-
+// contained sub-recipe with its own ingredients and steps. Simple recipes
+// (Vermont Cheddar Soup) have exactly one component. Complex dishes
+// (Southern Fried Chicken, Boston Cream Pie) have multiple.
+//
+// A component's ingredient list can contain two subtypes:
+//   type: "ingredient"  — a raw ingredient (flour, butter, salt…)
+//   type: "recipe"      — a link to another recipe by ID
+//                         ("1 recipe Pastry Cream Filling")
+//
+// Recipe linking means components can reference other saved recipes as
+// ingredients — clicking the link navigates to that recipe.
+//
+// Recipe
+//   ├── metadata (name, category, color, rating, tags, notes…)
+//   └── components[]
+//         ├── id, name, yield, holding, notes
+//         ├── ingredients[]
+//         │     ├── { type:"ingredient", id, amount, unit, name }
+//         │     └── { type:"recipe",     id, amount, unit, recipeId, recipeName }
+//         └── steps[]
+//               └── { id, text, substeps[{ id, text }] }
 //
 // When adding new recipe fields, start here.
 
 // ── Field options ─────────────────────────────────────────────────────────────
 export const UNITS = [
-  { value: "quart", label: "quart" },
-  { value: "cup",   label: "cup"   },
-  { value: "tbsp",  label: "tbsp"  },
-  { value: "tsp",   label: "tsp"   },
-  { value: "oz",    label: "oz"    },
-  { value: "lb",    label: "lb"    },
-  { value: "g",     label: "g"     },
-  { value: "kg",    label: "kg"    },
-  { value: "ml",    label: "ml"    },
-  { value: "l",     label: "l"     },
-  { value: "whole", label: "whole" },
-  { value: "pinch", label: "pinch" },
-  { value: "",      label: "none"  },
+  { value: "quart",  label: "quart"  },
+  { value: "cup",    label: "cup"    },
+  { value: "tbsp",   label: "tbsp"   },
+  { value: "tsp",    label: "tsp"    },
+  { value: "oz",     label: "oz"     },
+  { value: "lb",     label: "lb"     },
+  { value: "g",      label: "g"      },
+  { value: "kg",     label: "kg"     },
+  { value: "ml",     label: "ml"     },
+  { value: "l",      label: "l"      },
+  { value: "whole",  label: "whole"  },
+  { value: "pinch",  label: "pinch"  },
+  { value: "recipe", label: "recipe" }, // used by recipe-link ingredients
+  { value: "",       label: "none"   },
 ];
 
 export const CATEGORY_OPTIONS = [
@@ -37,34 +58,28 @@ export const CATEGORY_OPTIONS = [
 ];
 
 export const CARD_COLORS = [
-  "#F5C842", "#355fe9", "#e71f1f", "#299932", "#ff830e",
-  "#eb09b2", "#875504", "#000000", "#ac02db", "#00f5ab",
+  "#F5C842", "#E86038", "#6B9E5E", "#5B8DB8", "#C4956A",
 ];
 
-// ── Default blank recipe (used by RecipeForm for new recipes) ─────────────────
-export const BLANK_RECIPE = {
-  name:         "",
-  category:     "Main Dish",
-  prepTime:     "",
-  cookTime:     "",
-  baseServings: 4,
-  color:        CARD_COLORS[0],
-  rating:       0,
-  tags:         [],
-  notes:        "",
-  ingredients:  null, // populated lazily in RecipeForm to avoid stale refs
-  steps:        null,
-};
-
-// ── ID generator (client-side only, never stored as-is) ──────────────────────
+// ── ID generator (client-side only, never parsed or displayed) ────────────────
 function genId(prefix) {
   return `${prefix}${Date.now()}${Math.random()}`;
 }
 
-// ── Factory functions ─────────────────────────────────────────────────────────
+// ── Ingredient factories ──────────────────────────────────────────────────────
+
+// A raw ingredient (flour, butter, salt…)
 export function newIngredient() {
-  return { id: genId("i"), amount: "", unit: "cup", name: "" };
+  return { id: genId("i"), type: "ingredient", amount: "", unit: "cup", name: "" };
 }
+
+// A link to another saved recipe used as an ingredient.
+// recipeId is null until the user selects a recipe.
+export function newRecipeLink() {
+  return { id: genId("rl"), type: "recipe", amount: 1, unit: "recipe", recipeId: null, recipeName: "" };
+}
+
+// ── Step factories ────────────────────────────────────────────────────────────
 
 // Steps support sub-parts: Step 1, 1a, 1b … Step 2, 2a …
 // Shape: { id, text, substeps: [{ id, text }] }
@@ -76,15 +91,41 @@ export function newSubstep() {
   return { id: genId("sub"), text: "" };
 }
 
-// a, b, c … z, then s27, s28 … as a safety fallback
+// a, b, c … z, then s27, s28 … as a safety fallback past 26 sub-steps
 export function subLetter(idx) {
   return idx < 26 ? String.fromCharCode(97 + idx) : `s${idx + 1}`;
 }
 
+// ── Component factory ─────────────────────────────────────────────────────────
+// A component is a named sub-recipe. For simple recipes the name is empty —
+// the component IS the dish. For complex dishes each component is distinct:
+// "Buttermilk-Marinated Frying Chicken", "Down-Home Green Beans", etc.
+export function newComponent(name = "") {
+  return {
+    id:          genId("comp"),
+    name,
+    yieldAmt:    "",   // numeric amount, scales with servings — e.g. 1, 4
+    yieldUnit:   "",   // label/unit — e.g. "qt.", "servings", "(1¼-lb.) portions"
+    ingredients: [newIngredient(), newIngredient(), newIngredient()],
+    steps:       [newStep(), newStep()],
+    holding:     "",   // storage/holding instructions — optional
+    notes:       "",   // chef's notes for this component — optional
+  };
+}
+
+// ── Parse a legacy free-text yield string into { yieldAmt, yieldUnit } ────────
+// Tries to extract a leading number (int or decimal). The remainder becomes unit.
+function parseYield(str) {
+  if (!str) return { yieldAmt: "", yieldUnit: "" };
+  const m = str.trim().match(/^(\d+(?:\.\d+)?)\s*(.*)/);
+  if (m) return { yieldAmt: m[1], yieldUnit: m[2].trim() };
+  return { yieldAmt: "", yieldUnit: str.trim() };
+}
+
+
 // ── Step normalization ────────────────────────────────────────────────────────
-// Accepts legacy flat-string steps OR the current { id, text, substeps } shape.
-// Always returns the latter with ids filled in — so RecipeForm can edit any
-// previously-saved recipe without conditional checks.
+// Accepts legacy flat-string steps OR current { id, text, substeps } shape.
+// Always returns the latter with ids filled in.
 export function normalizeSteps(steps) {
   if (!steps || !steps.length) return [newStep()];
   return steps.map(s => {
@@ -117,6 +158,63 @@ export function stepsForDisplay(steps) {
     .filter(s => s.text || s.substeps.some(t => t));
 }
 
+// ── Ingredient normalization ──────────────────────────────────────────────────
+// Ensures every ingredient has a type field (migrates legacy shape that had none).
+export function normalizeIngredient(ing) {
+  if (ing.type === "recipe") return ing;
+  return { type: "ingredient", ...ing };
+}
+
+// ── Recipe normalization ──────────────────────────────────────────────────────
+// Migrates old flat-shape recipes { ingredients[], steps[] } into the new
+// component-based shape { components[] }. Safe to run on already-migrated data.
+export function normalizeRecipe(recipe) {
+  if (recipe.components && recipe.components.length > 0) {
+    // Already new shape — normalize ingredients and migrate legacy yield string
+    return {
+      ...recipe,
+      components: recipe.components.map(comp => {
+        const hasNewYield = "yieldAmt" in comp || "yieldUnit" in comp;
+        const yieldFields = hasNewYield ? {} : parseYield(comp.yield);
+        return {
+          ...comp,
+          ...yieldFields,
+          yield: undefined,   // drop legacy field
+          ingredients: (comp.ingredients || []).map(normalizeIngredient),
+          steps:       normalizeSteps(comp.steps),
+        };
+      }),
+    };
+  }
+
+  // Legacy shape: wrap top-level ingredients + steps into a single component
+  return {
+    ...recipe,
+    components: [
+      {
+        id:          genId("comp"),
+        name:        "",
+        yieldAmt:    "",
+        yieldUnit:   "",
+        ingredients: (recipe.ingredients || []).map(normalizeIngredient),
+        steps:       normalizeSteps(recipe.steps),
+        holding:     "",
+        notes:       "",
+      },
+    ],
+    // Remove legacy top-level fields so nothing reads stale data
+    ingredients: undefined,
+    steps:       undefined,
+  };
+}
+
+// ── Shopping list aggregation ─────────────────────────────────────────────────
+// Flattens all components' ingredients into a single list for the shopping list.
+// Recipe-link ingredients are included as a named item ("1 recipe Pastry Cream Filling").
+export function allIngredients(recipe) {
+  return (recipe.components || []).flatMap(c => c.ingredients || []);
+}
+
 // ── Formatters ────────────────────────────────────────────────────────────────
 export function formatAmount(amount, multiplier = 1) {
   const val = amount * multiplier;
@@ -138,9 +236,13 @@ export function formatAmount(amount, multiplier = 1) {
 }
 
 export function formatIngredient(ing, multiplier = 1) {
+  if (ing.type === "recipe") {
+    const amt = formatAmount(ing.amount, multiplier);
+    return `${amt} recipe ${ing.recipeName}`;
+  }
   const amt = formatAmount(ing.amount, multiplier);
-  if (ing.unit === "pinch")                  return `pinch of ${ing.name}`;
-  if (!ing.unit || ing.unit === "whole")     return `${amt} ${ing.name}`;
+  if (ing.unit === "pinch")              return `pinch of ${ing.name}`;
+  if (!ing.unit || ing.unit === "whole") return `${amt} ${ing.name}`;
   return `${amt} ${ing.unit} ${ing.name}`;
 }
 

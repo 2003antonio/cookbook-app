@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { allIngredients } from "../models/recipe";
 
 // ── Shopping List Screen ──────────────────────────────────────────────────────
 export default function ShoppingScreen({ items, onAdd, onToggle, onRemove, onClearChecked, recipes, onAddFromRecipe }) {
@@ -101,7 +102,7 @@ export default function ShoppingScreen({ items, onAdd, onToggle, onRemove, onCle
                 <div style={{ width: 32, height: 32, borderRadius: "var(--r-sm)", background: r.color, flexShrink: 0 }} />
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{r.name}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{r.ingredients?.length || 0} ingredients</div>
+                  <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{allIngredients(r).length} ingredients</div>
                 </div>
               </button>
             ))}

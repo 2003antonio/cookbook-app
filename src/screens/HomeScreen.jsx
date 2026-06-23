@@ -1,16 +1,15 @@
 import { useState } from "react";
-import { FavoritesCarousel }               from "../components/home/FavoritesCarousel";
-import { RecipePreviewSheet }              from "../components/home/RecipePreviewSheet";
-import { RecentRow, FavoritePickerSheet }  from "../components/home/HomeComponents";
-import { useAuth }       from "../hooks/useAuth";
-import ProfileButton     from "../components/auth/ProfileButton";
+import { FavoritesCarousel }              from "../components/home/FavoritesCarousel";
+import { RecipePreviewSheet }             from "../components/home/RecipePreviewSheet";
+import { RecentRow, FavoritePickerSheet } from "../components/home/HomeComponents";
+import ProfileButton                      from "../components/auth/ProfileButton";
 
 export default function HomeScreen({
   recipes, onGoToRecipes, onOpenRecipe, onNewRecipe, onAddToShopping, onToggleFavorite,
+  session, authLoading,
 }) {
   const [previewRecipe,      setPreviewRecipe]      = useState(null);
   const [favoritePickerOpen, setFavoritePickerOpen] = useState(false);
-  const { session, loading: authLoading } = useAuth();
 
   const favorites  = recipes.filter(r => r.favorite);
   const recent     = recipes.slice(0, 6);

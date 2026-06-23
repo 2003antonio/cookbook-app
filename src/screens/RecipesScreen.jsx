@@ -5,6 +5,7 @@ import { CATEGORY_OPTIONS }        from "../models/recipe";
 export default function RecipesScreen({
   recipes, onSelectRecipe, selectedRecipe, onCloseDetail,
   onEdit, onDelete, onToggleFavorite, onAddToShopping, onNewRecipe,
+  onNavigateRecipe, onCreateFromComponent,
   initialFilter = "All",
 }) {
   const [search,         setSearch]         = useState("");
@@ -133,6 +134,9 @@ export default function RecipesScreen({
         onDelete={onDelete}
         onToggleFavorite={onToggleFavorite}
         onAddToShopping={onAddToShopping}
+        onNavigateRecipe={onNavigateRecipe}
+        onCreateFromComponent={onCreateFromComponent}
+        recipes={recipes}
       />
 
       <style>{`@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>

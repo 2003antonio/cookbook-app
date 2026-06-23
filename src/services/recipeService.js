@@ -3,8 +3,19 @@
 // update RECIPE_FIELD_MAP here — nothing else needs to change.
 //
 // recipeToRow  — app object  → DB row  (for insert / update)
-// rowToRecipe  — DB row      → app object
-// rowToItem    — DB row      → shopping-list item
+// rowToRecipe  — DB row      → app object  (migrates legacy flat shape)
+//
+// SUPABASE SCHEMA NOTE
+// ────────────────────
+// The recipes table needs a `components` jsonb column.
+// Legacy rows may still have top-level `ingredients` and `steps` columns —
+// rowToRecipe handles the migration automatically (wraps them into a single
+// component) so old and new rows coexist without a destructive migration.
+//
+// Recommended migration SQL (run once, non-destructive):
+//   ALTER TABLE recipes ADD COLUMN IF NOT EXISTS components jsonb;
+
+import { normalizeRecipe } from "../models/recipe";
 
 const RECIPE_FIELD_MAP = {
   name:         "name",
@@ -17,12 +28,10 @@ const RECIPE_FIELD_MAP = {
   tags:         "tags",
   favorite:     "favorite",
   notes:        "notes",
-  ingredients:  "ingredients",
-  steps:        "steps",
+  components:   "components",  // replaces top-level ingredients + steps
 };
 
 // Partial-update safe: only keys present on `recipe` are included in the row.
-// A { favorite: true } patch won't clobber name, ingredients, etc. with null.
 export function recipeToRow(recipe) {
   const row = {};
   for (const [jsKey, dbKey] of Object.entries(RECIPE_FIELD_MAP)) {
@@ -32,7 +41,7 @@ export function recipeToRow(recipe) {
 }
 
 export function rowToRecipe(row) {
-  return {
+  const raw = {
     id:           row.id,
     name:         row.name,
     category:     row.category,
@@ -44,18 +53,17 @@ export function rowToRecipe(row) {
     tags:         row.tags || [],
     favorite:     row.favorite,
     notes:        row.notes,
-    ingredients:  row.ingredients || [],
-    steps:        row.steps || [],
+    // New shape
+    components:   row.components || null,
+    // Legacy fields — present on old rows, undefined on new ones
+    ingredients:  row.ingredients || null,
+    steps:        row.steps || null,
     createdAt:    row.created_at ? Date.parse(row.created_at) : Date.now(),
     updatedAt:    row.updated_at ? Date.parse(row.updated_at) : undefined,
   };
+
+  // normalizeRecipe handles both: if components[] exists it passes through,
+  // if only ingredients/steps exist it wraps them into a single component.
+  return normalizeRecipe(raw);
 }
 
-export function rowToItem(row) {
-  return {
-    id:         row.id,
-    text:       row.text,
-    checked:    row.checked,
-    fromRecipe: row.from_recipe || undefined,
-  };
-}

@@ -1,17 +1,19 @@
-import { useState } from "react";
-import { useRecipes, useShoppingList } from "./hooks/useRecipes";
-import { RecipeForm }  from "./components/recipe/RecipeForm";
-import { ToastHost }   from "./components/ui/ToastHost";
-import { BottomNav }   from "./components/nav/BottomNav";
-import HomeScreen      from "./screens/HomeScreen";
-import RecipesScreen   from "./screens/RecipesScreen";
-import ShoppingScreen  from "./screens/ShoppingScreen";
-import { useAuth }     from "./hooks/useAuth";
+import { useState }        from "react";
+import { useAuth }         from "./hooks/useAuth";
+import { useRecipes }      from "./hooks/useRecipes";
+import { useShoppingList } from "./hooks/useShoppingList";
+import { CARD_COLORS }     from "./models/recipe";
+import { RecipeForm }      from "./components/recipe/RecipeForm";
+import { ToastHost }       from "./components/ui/ToastHost";
+import { BottomNav }       from "./components/nav/BottomNav";
+import HomeScreen          from "./screens/HomeScreen";
+import RecipesScreen       from "./screens/RecipesScreen";
+import ShoppingScreen      from "./screens/ShoppingScreen";
 import "./style/tokens.css";
 
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
-  const { session } = useAuth();
+  const { session, loading: authLoading } = useAuth();
   const userId = session?.user?.id ?? null;
 
   const { recipes, addRecipe, updateRecipe, deleteRecipe, toggleFavorite } = useRecipes(userId);
@@ -23,8 +25,28 @@ export default function App() {
   const [recipesFilter,  setRecipesFilter]  = useState("All");
 
   const handleSave = (data) => {
-    if (formState === "new") {
+    if (!formState?.id) {
+      // "new" string or a component-prefill object (no id) → create
       const created = addRecipe(data);
+      // If saving from "Save as standalone recipe", auto-link parent recipe's
+      // unlinked recipe-link ingredients that share the component's name
+      if (formState?._parentRecipeId && formState?._compName) {
+        const parentRecipe = recipes.find(r => r.id === formState._parentRecipeId);
+        if (parentRecipe) {
+          const updatedComponents = parentRecipe.components.map(c => ({
+            ...c,
+            // Mark the source component as already saved standalone
+            ...(c.name === formState._compName ? { linkedRecipeId: created.id } : {}),
+            // Auto-link any recipe-link ingredients that share the component name
+            ingredients: (c.ingredients || []).map(ing =>
+              ing.type === "recipe" && ing.recipeName === formState._compName && !ing.recipeId
+                ? { ...ing, recipeId: created.id }
+                : ing
+            ),
+          }));
+          updateRecipe(formState._parentRecipeId, { components: updatedComponents });
+        }
+      }
       setSelectedRecipe(created);
       setRecipesFilter("All");
       setTab("recipes");
@@ -34,6 +56,25 @@ export default function App() {
       setSelectedRecipe(updated);
     }
     setFormState(null);
+  };
+
+  // Open the form pre-filled with a component's data as a new recipe
+  const handleCreateFromComponent = (comp, parentRecipeId) => {
+    setFormState({
+      name:         comp.name || "",
+      category:     "Main Dish",
+      prepTime:     "",
+      cookTime:     "",
+      baseServings: 4,
+      color:        CARD_COLORS[0],
+      rating:       0,
+      tags:         [],
+      notes:        "",
+      components:   [{ ...comp, name: "" }],
+      _prefill:         true,
+      _parentRecipeId:  parentRecipeId,
+      _compName:        comp.name || "",
+    });
   };
 
   const handleDelete = (id) => {
@@ -77,6 +118,8 @@ export default function App() {
             onNewRecipe={() => setFormState("new")}
             onToggleFavorite={toggleFavorite}
             onAddToShopping={addFromRecipe}
+            session={session}
+            authLoading={authLoading}
           />
         )}
 
@@ -91,6 +134,8 @@ export default function App() {
             onToggleFavorite={toggleFavorite}
             onAddToShopping={addFromRecipe}
             onNewRecipe={() => setFormState("new")}
+            onNavigateRecipe={id => setSelectedRecipe(recipes.find(r => r.id === id) ?? null)}
+            onCreateFromComponent={handleCreateFromComponent}
             initialFilter={recipesFilter}
             isEditing={isEditingRecipe}
           />
@@ -121,9 +166,10 @@ export default function App() {
 
       {formState !== null && (
         <RecipeForm
-          initial={formState === "new" ? null : formState}
+          initial={formState === "new" ? null : (formState?.id ? formState : { ...formState, _prefill: true })}
           onSave={handleSave}
           onCancel={() => setFormState(null)}
+          recipes={recipes}
         />
       )}
 
