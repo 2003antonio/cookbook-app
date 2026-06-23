@@ -226,7 +226,7 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
           <HeroBtn onClick={handleToggleFavorite} title={isFavorite ? "Unfavorite" : "Favorite"}>
             {isFavorite ? "♥" : "♡"}
           </HeroBtn>
-          <HeroBtn onClick={() => { onClose(); setTimeout(() => onEdit(recipe), 50); }} title="Edit">✏️</HeroBtn>
+          <HeroBtn onClick={() => onEdit(recipe)} title="Edit">✏️</HeroBtn>
           <HeroBtn onClick={handleClose} title="Close">✕</HeroBtn>
         </div>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 6 }}>

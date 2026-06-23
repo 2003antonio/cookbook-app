@@ -29,6 +29,8 @@ const BLANK = {
 };
 
 export function RecipeForm({ initial, onSave, onCancel }) {
+  let _mouseDownOnBackdrop = false;
+
   const [form,     setForm]     = useState(() =>
     initial
       ? { ...initial, tags: initial.tags || [], steps: normalizeSteps(initial.steps), ingredients: initial.ingredients?.length ? initial.ingredients : [newIngredient()] }
@@ -109,13 +111,17 @@ export function RecipeForm({ initial, onSave, onCancel }) {
         backdropFilter: "blur(3px)", zIndex: 200,
         display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
       }}
-      onClick={e => e.target === e.currentTarget && onCancel()}
+      onMouseDown={e => { _mouseDownOnBackdrop = e.target === e.currentTarget; }}
+      onClick={e => { if (e.target === e.currentTarget && _mouseDownOnBackdrop) onCancel(); }}
     >
-      <div style={{
-        background: "white", borderRadius: "var(--r-lg)", width: "100%",
-        maxWidth: 620, maxHeight: "90vh", display: "flex", flexDirection: "column",
-        boxShadow: "var(--shadow-lg)", overflow: "hidden",
-      }}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "white", borderRadius: "var(--r-lg)", width: "100%",
+          maxWidth: 620, maxHeight: "90vh", display: "flex", flexDirection: "column",
+          boxShadow: "var(--shadow-lg)", overflow: "hidden",
+        }}
+      >
         {/* Header */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",

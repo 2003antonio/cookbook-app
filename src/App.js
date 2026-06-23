@@ -89,8 +89,9 @@ export default function App() {
       setRecipesFilter("All");
       setTab("recipes");
     } else {
+      const updated = { ...formState, ...data };
       updateRecipe(formState.id, data);
-      setSelectedRecipe(prev => prev ? { ...prev, ...data } : prev);
+      setSelectedRecipe(updated);
     }
     setFormState(null);
   };
