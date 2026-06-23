@@ -66,8 +66,7 @@ export function FavoritesCarousel({ favorites, onSelect, onAddNew }) {
     velocity.current  = x - lastX.current;
     lastX.current     = x;
     dragDelta.current = x - startX.current;
-    const maxOffset = CARD_W * 0.4;
-    setDragOffset(Math.max(-maxOffset, Math.min(maxOffset, dragDelta.current)));
+    setDragOffset(dragDelta.current);
   };
 
   const onUp = () => {
@@ -101,7 +100,7 @@ export function FavoritesCarousel({ favorites, onSelect, onAddNew }) {
           style={{
             display: "flex", gap: GAP, paddingLeft: 24, paddingRight: 24,
             transform: `translateX(calc(${-active * CARD_STEP}px + ${dragOffset}px))`,
-            transition: transitioning ? "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
+            transition: transitioning ? "transform 0.32s cubic-bezier(0.25, 1, 0.35, 1)" : "none",
             cursor: "grab", userSelect: "none",
           }}
         >
