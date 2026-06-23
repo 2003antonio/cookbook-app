@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { StarRating } from "../ui/StarRating";
 import { StepList }   from "../ui/StepList";
 import { showToast }  from "../ui/ToastHost";
-import { formatTime, formatIngredient } from "../../hooks/useRecipes";
+import { formatTime, formatIngredient } from "../../models/recipe";
 
 // ── Small helper ─────────────────────────────────────────────────────────────
 function HeroBtn({ children, onClick, title }) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { StarRating } from "../ui/StarRating";
 import { StepList }   from "../ui/StepList";
-import { formatTime, formatIngredient } from "../../hooks/useRecipes";
+import { formatTime, formatIngredient } from "../../models/recipe";
 
 export function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
   const [activeTab,  setActiveTab]  = useState("ingredients");

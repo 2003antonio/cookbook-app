@@ -1,5 +1,5 @@
 import { StarRating } from "../ui/StarRating";
-import { formatTime } from "../../hooks/useRecipes";
+import { formatTime } from "../../models/recipe";
 
 // ── Recent Recipe Row ─────────────────────────────────────────────────────────
 export function RecentRow({ recipe, onSelect }) {

@@ -5,7 +5,7 @@ import { showToast }  from "../ui/ToastHost";
 import {
   UNITS, CATEGORY_OPTIONS, CARD_COLORS,
   newIngredient, newStep, newSubstep, subLetter, normalizeSteps,
-} from "../../hooks/useRecipes";
+} from "../../models/recipe";
 
 // ── Amount parser (supports fractions and decimals) ───────────────────────────
 function parseAmount(val) {

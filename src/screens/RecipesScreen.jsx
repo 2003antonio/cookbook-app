@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { RecipeCard, DetailSheet } from "../components/recipe";
-import { CATEGORY_OPTIONS }        from "../hooks/useRecipes";
+import { CATEGORY_OPTIONS }        from "../models/recipe";
 
 export default function RecipesScreen({
   recipes, onSelectRecipe, selectedRecipe, onCloseDetail,
@@ -100,7 +100,7 @@ export default function RecipesScreen({
         {/* Grid */}
         <div style={{ flex: 1, overflowY: "auto", padding: "0 24px", paddingBottom: "calc(var(--nav-h) + 16px)" }}>
           {filtered.length > 0 ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14 }}>
               {filtered.map(r => (
                 <RecipeCard
                   key={r.id} recipe={r}

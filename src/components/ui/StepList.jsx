@@ -1,4 +1,4 @@
-import { stepsForDisplay, subLetter } from "../../hooks/useRecipes";
+import { stepsForDisplay, subLetter } from "../../models/recipe";
 
 // Shared between RecipeDetail and HomeScreen's read-only preview sheet
 // so the two read-only views of a recipe's steps can't drift out of sync.

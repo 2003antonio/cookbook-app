@@ -1,6 +1,6 @@
 //THE ACTUAL LITTLE RECIPE CARD COMPONENT USED IN THE RECIPE SCREEN
 import { StarRating } from "../ui/StarRating";
-import { formatTime } from "../../hooks/useRecipes";
+import { formatTime } from "../../models/recipe";
 
 export function RecipeCard({ recipe, onSelect, active, onToggleFavorite }) {
   return (

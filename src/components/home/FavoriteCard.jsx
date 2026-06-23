@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { StarRating } from "../ui/StarRating";
-import { formatTime } from "../../hooks/useRecipes";
+import { formatTime } from "../../models/recipe";
 
 export const CARD_W    = 280;
 export const GAP       = 16;
