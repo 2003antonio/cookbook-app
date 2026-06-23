@@ -1,5 +1,5 @@
 import { StarRating } from "../ui/StarRating";
-import { formatTime }  from "../../hooks/useRecipes";
+import { formatTime } from "../../hooks/useRecipes";
 
 // ── Recent Recipe Row ─────────────────────────────────────────────────────────
 export function RecentRow({ recipe, onSelect }) {
@@ -29,41 +29,77 @@ export function RecentRow({ recipe, onSelect }) {
 export function FavoritePickerSheet({ recipes, onClose, onToggleFavorite, onNewRecipe }) {
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)", zIndex: 90 }} />
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)", zIndex: 90, animation: "fadeIn 0.2s ease" }} />
 
-      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, maxHeight: "80vh", background: "white", borderRadius: "24px 24px 0 0", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)", zIndex: 91, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexShrink: 0 }}>
-          <div>
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: 19, fontWeight: 700, color: "var(--ink)" }}>Add a favorite</h2>
-            <p style={{ fontSize: 12.5, color: "var(--ink-faint)", marginTop: 3 }}>Tap a recipe to star it</p>
+      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, maxHeight: "80vh", background: "white", borderRadius: "24px 24px 0 0", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)", zIndex: 91, display: "flex", flexDirection: "column", animation: "slideUp 0.36s cubic-bezier(0.4,0,0.2,1)" }}>
+
+        {/* Header */}
+        <div style={{ background: "white", borderRadius: "24px 24px 0 0", padding: "22px 20px 16px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--fire)", marginBottom: 4 }}>Favourites</p>
+              <h2 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: "var(--ink)", lineHeight: 1.2 }}>Choose a recipe</h2>
+              <p style={{ fontSize: 12.5, color: "var(--ink-faint)", marginTop: 4 }}>Tap ☆ to add it to your favourites</p>
+            </div>
+            <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--surface)", color: "var(--ink-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 14 }}>✕</button>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--surface)", color: "var(--ink-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✕</button>
         </div>
 
-        <div style={{ padding: "4px 20px 28px", overflowY: "auto" }}>
+        <div style={{ overflowY: "auto", flex: 1 }}>
           {recipes.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "32px 8px 12px" }}>
-              <div style={{ fontSize: 28, marginBottom: 10 }}>📖</div>
-              <p style={{ fontWeight: 600, fontSize: 15, color: "var(--ink)", marginBottom: 4 }}>No recipes yet</p>
-              <p style={{ fontSize: 13, color: "var(--ink-faint)", marginBottom: 18 }}>Add a recipe first, then come back here to favorite it</p>
-              <button onClick={() => { onClose(); onNewRecipe(); }} style={{ padding: "11px 24px", background: "var(--fire)", color: "white", borderRadius: "var(--r-full)", fontSize: 14, fontWeight: 600 }}>+ Add a recipe</button>
+            <div style={{ textAlign: "center", padding: "40px 24px 24px" }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>📖</div>
+              <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 17, color: "var(--ink)", marginBottom: 6 }}>No recipes yet</p>
+              <p style={{ fontSize: 13, color: "var(--ink-faint)", marginBottom: 22, lineHeight: 1.5 }}>Add a recipe first, then come back here to favourite it.</p>
+              <button onClick={() => { onClose(); onNewRecipe(); }} style={{ padding: "12px 28px", background: "var(--fire)", color: "white", borderRadius: "var(--r-full)", fontSize: 14, fontWeight: 600, boxShadow: "0 4px 14px rgba(232,98,26,0.35)" }}>+ Add a recipe</button>
             </div>
           ) : (
-            recipes.map(r => (
-              <button key={r.id} onClick={() => onToggleFavorite(r.id)} style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", textAlign: "left", padding: "11px 0", borderBottom: "1px solid var(--border)" }}>
-                <div style={{ width: 44, height: 44, borderRadius: "var(--r-sm)", background: r.color, flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
-                  <div style={{ fontSize: 12, color: "var(--ink-faint)" }}>{r.category}</div>
-                </div>
-                <span style={{ fontSize: 19, color: r.favorite ? "var(--fire)" : "var(--ink-faint)", flexShrink: 0 }}>
-                  {r.favorite ? "★" : "☆"}
-                </span>
-              </button>
-            ))
+            <div style={{ padding: "8px 16px 28px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {recipes.map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => onToggleFavorite(r.id)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 14,
+                    width: "100%", textAlign: "left",
+                    padding: "10px 12px", borderRadius: "var(--r-md)",
+                    background: r.favorite ? "var(--fire-glow)" : "transparent",
+                    border: r.favorite ? "1.5px solid rgba(232,98,26,0.2)" : "1.5px solid transparent",
+                    transition: "background 0.15s, border-color 0.15s",
+                  }}
+                  onMouseEnter={e => { if (!r.favorite) e.currentTarget.style.background = "var(--surface)"; }}
+                  onMouseLeave={e => { if (!r.favorite) e.currentTarget.style.background = "transparent"; }}
+                >
+                  {/* Color swatch */}
+                  <div style={{ width: 46, height: 46, borderRadius: "var(--r-sm)", background: r.color, flexShrink: 0, boxShadow: "var(--shadow-sm)" }} />
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+                    <div style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>{r.category} · {formatTime(r.prepTime, r.cookTime)}</div>
+                  </div>
+
+                  {/* Star */}
+                  <div style={{
+                    width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                    background: r.favorite ? "var(--fire)" : "var(--surface)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 15, color: r.favorite ? "white" : "var(--ink-faint)",
+                    transition: "background 0.15s, color 0.15s",
+                    boxShadow: r.favorite ? "0 2px 8px rgba(232,98,26,0.4)" : "none",
+                  }}>
+                    {r.favorite ? "★" : "☆"}
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </div>
+
+      <style>{`
+        @keyframes fadeIn  { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+      `}</style>
     </>
   );
 }

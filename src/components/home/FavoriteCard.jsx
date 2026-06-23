@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { StarRating } from "../ui/StarRating";
 import { formatTime } from "../../hooks/useRecipes";
 
@@ -7,16 +8,22 @@ export const CARD_STEP = CARD_W + GAP;
 
 // Read-only card shown in the Favorites carousel.
 export function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
+  const [hovered, setHovered] = useState(false);
+  const scale = active ? 1.02 : 0.96;
+  const lift  = hovered ? -3 : 0;
+
   return (
     <div
       onClick={() => { if (Math.abs(dragDelta.current) > 5) return; onSelect(recipe); }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         minWidth: CARD_W, width: CARD_W,
         background: "white", borderRadius: "var(--r-lg)",
         cursor: "pointer", overflow: "hidden",
         boxShadow: active ? "var(--shadow-lg)" : "var(--shadow-sm)",
-        transform: active ? "scale(1.02)" : "scale(0.96)",
-        transition: "transform 0.3s ease, box-shadow 0.3s ease",
+        transform: `scale(${scale}) translateY(${lift}px)`,
+        transition: "transform 0.18s ease, box-shadow 0.18s ease",
         flexShrink: 0,
       }}
     >
@@ -51,9 +58,15 @@ export function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
 
 // Filler shown when there aren't enough favorites to fill the loop.
 export function PlaceholderFavoriteCard({ active, onAddNew, dragDelta }) {
+  const [hovered, setHovered] = useState(false);
+  const scale = active ? 1.02 : 0.96;
+  const lift  = hovered ? -3 : 0;
+
   return (
     <div
       onClick={() => { if (Math.abs(dragDelta.current) > 5) return; onAddNew?.(); }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         minWidth: CARD_W, width: CARD_W, minHeight: 226,
         borderRadius: "var(--r-lg)", background: "var(--surface)",
@@ -61,8 +74,8 @@ export function PlaceholderFavoriteCard({ active, onAddNew, dragDelta }) {
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         gap: 10, padding: "28px 22px", textAlign: "center",
         boxShadow: active ? "var(--shadow-md)" : "none",
-        transform: active ? "scale(1.02)" : "scale(0.96)",
-        transition: "transform 0.3s ease, box-shadow 0.3s ease",
+        transform: `scale(${scale}) translateY(${lift}px)`,
+        transition: "transform 0.18s ease, box-shadow 0.18s ease",
         flexShrink: 0,
       }}
     >

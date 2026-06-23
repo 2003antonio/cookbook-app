@@ -1,3 +1,4 @@
+//THE ACTUAL LITTLE RECIPE CARD COMPONENT USED IN THE RECIPE SCREEN
 import { StarRating } from "../ui/StarRating";
 import { formatTime } from "../../hooks/useRecipes";
 

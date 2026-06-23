@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { StarRating } from "../ui/StarRating";
 import { StepList }   from "../ui/StepList";
 import { formatTime, formatIngredient } from "../../hooks/useRecipes";
@@ -7,13 +7,41 @@ export function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
   const [activeTab,  setActiveTab]  = useState("ingredients");
   const [servings,   setServings]   = useState(null);
   const [addedToast, setAddedToast] = useState(false);
+  const [dragY,      setDragY]      = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [closing,    setClosing]    = useState(false);
+  const startY = useRef(0);
+
+  useEffect(() => {
+    if (!recipe) return;
+    const original = window.getComputedStyle(document.body).overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = original; };
+  }, [recipe]);
+
+  const handleClose = () => {
+    setClosing(true);
+    setTimeout(() => { setClosing(false); setServings(null); setActiveTab("ingredients"); onClose(); }, 340);
+  };
+
+  const handleTouchStart = e => {
+    startY.current = e.touches[0].clientY;
+    setIsDragging(true);
+  };
+  const handleTouchMove = e => {
+    const delta = e.touches[0].clientY - startY.current;
+    if (delta > 0) setDragY(delta);
+  };
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    if (dragY > 200) handleClose();
+    setDragY(0);
+  };
 
   if (!recipe) return null;
 
   const currentServings = servings ?? recipe.baseServings ?? 4;
   const multiplier      = currentServings / (recipe.baseServings || 1);
-
-  const handleClose = () => { setServings(null); setActiveTab("ingredients"); onClose(); };
 
   const handleAddToShopping = () => {
     onAddToShopping(recipe);
@@ -29,13 +57,35 @@ export function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
   return (
     <>
       {/* Scrim */}
-      <div onClick={handleClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)", zIndex: 90 }} />
+      <div onClick={handleClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)", zIndex: 90, animation: `${closing ? "fadeOut" : "fadeIn"} 0.34s ease forwards` }} />
 
       {/* Sheet */}
-      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: "88vh", background: "white", borderRadius: "24px 24px 0 0", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)", zIndex: 91, display: "flex", flexDirection: "column" }}>
+      <div style={{
+        position: "fixed", left: 0, right: 0, bottom: 0, height: "88vh",
+        background: "white", borderRadius: "24px 24px 0 0",
+        boxShadow: "0 -8px 40px rgba(0,0,0,0.15)", zIndex: 91,
+        display: "flex", flexDirection: "column",
+        transform: isDragging ? `translateY(${dragY}px)` : undefined,
+        transition: isDragging ? "none" : undefined,
+        animation: !isDragging
+          ? closing
+            ? "slideDown 0.34s cubic-bezier(0.4, 0, 0.2, 1) forwards"
+            : "slideUp 0.36s cubic-bezier(0.4, 0, 0.2, 1)"
+          : undefined,
+      }}>
+
+        {/* Drag handle */}
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{ padding: "10px 0 5px", display: "flex", justifyContent: "center", cursor: "grab", touchAction: "none", flexShrink: 0 }}
+        >
+          <div style={{ width: 36, height: 4, borderRadius: 999, background: "var(--border)" }} />
+        </div>
 
         {/* Hero */}
-        <div style={{ background: recipe.color, padding: "48px 24px 28px", position: "relative", flexShrink: 0 }}>
+        <div style={{ background: recipe.color, padding: "20px 24px 28px", position: "relative", flexShrink: 0 }}>
           <button onClick={handleClose} style={{ position: "absolute", top: 16, right: 16, width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.22)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 6 }}>{recipe.category}</div>
           <h2 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 700, color: "white", lineHeight: 1.15, marginBottom: 10 }}>{recipe.name}</h2>
@@ -119,6 +169,13 @@ export function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
           </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes fadeIn   { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes fadeOut  { from { opacity: 1 } to { opacity: 0 } }
+        @keyframes slideUp  { from { transform: translateY(100%) } to { transform: translateY(0) } }
+        @keyframes slideDown { from { transform: translateY(0) } to { transform: translateY(100%) } }
+      `}</style>
     </>
   );
 }

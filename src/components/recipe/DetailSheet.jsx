@@ -4,6 +4,7 @@ import { RecipeDetail } from "./RecipeDetail";
 export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAddToShopping }) {
   const [dragY,       setDragY]       = useState(0);
   const [isDragging,  setIsDragging]  = useState(false);
+  const [closing,     setClosing]     = useState(false);
   const startY = useRef(0);
 
   // Lock body scroll while sheet is open
@@ -13,6 +14,11 @@ export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorit
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = original; };
   }, [recipe]);
+
+  const handleClose = () => {
+    setClosing(true);
+    setTimeout(() => { setClosing(false); onClose(); }, 360);
+  };
 
   const handleTouchStart = e => {
     startY.current = e.touches[0].clientY;
@@ -26,19 +32,32 @@ export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorit
 
   const handleTouchEnd = () => {
     setIsDragging(false);
-    if (dragY > 200) onClose();
+    if (dragY > 200) {
+      handleClose();
+    }
     setDragY(0);
+  };
+
+  // During drag: follow finger. When closing: slide to 100%. Otherwise: open at 0 or hidden at 100%.
+  const getTransform = () => {
+    if (isDragging)  return `translateY(${dragY}px)`;
+    if (closing)     return "translateY(100%)";
+    if (recipe)      return "translateY(0)";
+    return "translateY(100%)";
   };
 
   return (
     <>
       {recipe && (
         <div
-          onClick={onClose}
+          onClick={handleClose}
           style={{
             position: "fixed", inset: 0,
             background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)",
-            zIndex: 90, animation: "fadeIn 0.2s ease",
+            zIndex: 90,
+            opacity: closing ? 0 : 1,
+            transition: "opacity 0.36s cubic-bezier(0.4, 0, 0.2, 1)",
+            animation: closing ? undefined : "fadeIn 0.2s ease",
           }}
         />
       )}
@@ -49,7 +68,7 @@ export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorit
         borderRadius: "24px 24px 0 0",
         boxShadow: "0 -8px 40px rgba(0,0,0,0.15)",
         zIndex: 91, overflow: "hidden", flexDirection: "column",
-        transform: recipe ? `translateY(${dragY}px)` : "translateY(100%)",
+        transform: getTransform(),
         transition: isDragging ? "none" : "transform 0.36s cubic-bezier(0.4, 0, 0.2, 1)",
       }}>
         {/* Drag handle */}
@@ -69,7 +88,7 @@ export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorit
         {recipe && (
           <RecipeDetail
             recipe={recipe}
-            onClose={onClose}
+            onClose={handleClose}
             onEdit={onEdit}
             onDelete={onDelete}
             onToggleFavorite={onToggleFavorite}
