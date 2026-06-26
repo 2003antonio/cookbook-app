@@ -7,10 +7,11 @@
 //
 // SUPABASE SCHEMA NOTE
 // ────────────────────
-// The recipes table needs a `components` jsonb column.
-// Legacy rows may still have top-level `ingredients` and `steps` columns —
-// rowToRecipe handles the migration automatically (wraps them into a single
-// component) so old and new rows coexist without a destructive migration.
+// The recipes table stores the part list in a jsonb column still named
+// `components` (kept to avoid a destructive rename). In the app this maps to the
+// `parts` field — recipeToRow writes parts → components, rowToRecipe reads
+// components → parts via normalizeRecipe. Legacy rows with top-level
+// `ingredients`/`steps` are migrated automatically too.
 //
 // Recommended migration SQL (run once, non-destructive):
 //   ALTER TABLE recipes ADD COLUMN IF NOT EXISTS components jsonb;
@@ -28,7 +29,7 @@ const RECIPE_FIELD_MAP = {
   tags:         "tags",
   favorite:     "favorite",
   notes:        "notes",
-  components:   "components",  // replaces top-level ingredients + steps
+  parts:        "components",  // app `parts` ↔ DB `components` jsonb column
 };
 
 // Partial-update safe: only keys present on `recipe` are included in the row.
@@ -53,17 +54,16 @@ export function rowToRecipe(row) {
     tags:         row.tags || [],
     favorite:     row.favorite,
     notes:        row.notes,
-    // New shape
-    components:   row.components || null,
-    // Legacy fields — present on old rows, undefined on new ones
+    // Part list lives in the `components` jsonb column (see schema note above).
+    parts:        row.components || null,
+    // Legacy flat fields — present on very old rows, undefined otherwise
     ingredients:  row.ingredients || null,
     steps:        row.steps || null,
     createdAt:    row.created_at ? Date.parse(row.created_at) : Date.now(),
     updatedAt:    row.updated_at ? Date.parse(row.updated_at) : undefined,
   };
 
-  // normalizeRecipe handles both: if components[] exists it passes through,
-  // if only ingredients/steps exist it wraps them into a single component.
+  // normalizeRecipe migrates any shape (parts / components / flat) into `parts`.
   return normalizeRecipe(raw);
 }
 

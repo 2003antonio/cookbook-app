@@ -41,8 +41,8 @@ export function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
   if (!recipe) return null;
 
   const normalized      = normalizeRecipe(recipe);
-  const components      = normalized.components || [];
-  const isSimple        = components.length === 1 && !components[0].name;
+  const parts           = normalized.parts || [];
+  const isSimple        = parts.length === 1 && !parts[0].name;
   const currentServings = servings ?? recipe.baseServings ?? 4;
   const multiplier      = currentServings / (recipe.baseServings || 1);
 
@@ -144,9 +144,9 @@ export function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
         <div style={{ padding: 20, flex: 1, overflowY: "auto" }}>
           {activeTab === "ingredients" && (
             <div style={{ display: "flex", flexDirection: "column", gap: isSimple ? 0 : 20 }}>
-              {components.map(comp => (
-                <div key={comp.id}>
-                  {!isSimple && comp.name && (
+              {parts.map((part, idx) => (
+                <div key={part.id}>
+                  {!isSimple && (part.name || part.description) && (
                     <div style={{
                       display: "flex", alignItems: "center", justifyContent: "space-between",
                       padding: "7px 12px", marginBottom: 8,
@@ -154,14 +154,14 @@ export function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
                       borderRadius: "var(--r-sm)",
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(232,98,26,0.75)", background: "rgba(232,98,26,0.12)", padding: "2px 6px", borderRadius: 4 }}>recipe</span>
-                        <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{comp.name}</span>
+                        <span style={{ fontSize: 13, flexShrink: 0 }}>{part.icon || (idx + 1)}</span>
+                        <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{part.name || `Part ${idx + 1}`}</span>
                       </div>
-                      {(comp.yieldAmt || comp.yieldUnit) && <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>{[comp.yieldAmt, comp.yieldUnit].filter(Boolean).join(" ")}</span>}
+                      {part.description && <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>{part.description}</span>}
                     </div>
                   )}
                   <ul style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {(comp.ingredients || []).map(ing => (
+                    {(part.ingredients || []).map(ing => (
                       <li key={ing.id} style={{ display: "flex", gap: 10, fontSize: 13.5, color: ing.type === "recipe" ? "var(--fire)" : "var(--ink)" }}>
                         <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--fire)", marginTop: 6, flexShrink: 0 }} />
                         {formatIngredient(ing, multiplier)}
@@ -174,14 +174,14 @@ export function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
           )}
           {activeTab === "steps" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {(recipe.components || []).map((comp, i) => (
-                <div key={comp.id}>
-                  {comp.name && (
+              {parts.map((part, i) => (
+                <div key={part.id}>
+                  {part.name && (
                     <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-faint)", marginBottom: 8 }}>
-                      {comp.name}
+                      {part.icon ? `${part.icon} ` : ""}{part.name}
                     </p>
                   )}
-                  <StepList steps={comp.steps} />
+                  <StepList steps={part.steps} />
                 </div>
               ))}
             </div>

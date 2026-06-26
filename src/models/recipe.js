@@ -3,28 +3,24 @@
 //
 // SHAPE OVERVIEW
 // ──────────────
-// A recipe is made of one or more Components. Each component is a self-
-// contained sub-recipe with its own ingredients and steps. Simple recipes
-// (Vermont Cheddar Soup) have exactly one component. Complex dishes
-// (Southern Fried Chicken, Boston Cream Pie) have multiple.
+// A recipe is made of one or more Parts. Each part is a section / stage of the
+// dish with its own ingredients and steps. A simple recipe has exactly one part
+// (its name/description left blank — the part IS the dish). A multi-part recipe
+// breaks the dish into stages: "Prep", "The Sauce", "The Filling", "Assemble"…
 //
-// A component's ingredient list can contain two subtypes:
-//   type: "ingredient"  — a raw ingredient (flour, butter, salt…)
-//   type: "recipe"      — a link to another recipe by ID
-//                         ("1 recipe Pastry Cream Filling")
+//   Recipe
+//     ├── metadata (name, category, color, rating, tags, notes…)
+//     └── parts[]
+//           ├── { id, name, description, icon }
+//           ├── ingredients[] — { type:"ingredient", id, amount, unit, name }
+//           └── steps[]       — { id, text, substeps:[{ id, text }] }
 //
-// Recipe linking means components can reference other saved recipes as
-// ingredients — clicking the link navigates to that recipe.
-//
-// Recipe
-//   ├── metadata (name, category, color, rating, tags, notes…)
-//   └── components[]
-//         ├── id, name, yield, holding, notes
-//         ├── ingredients[]
-//         │     ├── { type:"ingredient", id, amount, unit, name }
-//         │     └── { type:"recipe",     id, amount, unit, recipeId, recipeName }
-//         └── steps[]
-//               └── { id, text, substeps[{ id, text }] }
+// LEGACY NOTE
+// ───────────
+// Older data used a `components` array (with yield/holding fields) or a flat
+// top-level `ingredients`/`steps` pair. normalizeRecipe() migrates both into the
+// `parts` shape, so old and new rows coexist without a destructive migration.
+// (The Supabase column is still named `components` — see recipeService.js.)
 //
 // When adding new recipe fields, start here.
 
@@ -42,7 +38,7 @@ export const UNITS = [
   { value: "l",      label: "l"      },
   { value: "whole",  label: "whole"  },
   { value: "pinch",  label: "pinch"  },
-  { value: "recipe", label: "recipe" }, // used by recipe-link ingredients
+  { value: "recipe", label: "recipe" }, // legacy recipe-link ingredients (display only)
   { value: "",       label: "none"   },
 ];
 
@@ -61,26 +57,22 @@ export const CARD_COLORS = [
   "#F5C842", "#E86038", "#6B9E5E", "#5B8DB8", "#C4956A",
 ];
 
+// Emoji choices for a part's "visual cue" (Prep, Cook, Assemble, Finish…).
+export const PART_ICONS = [
+  "🥣", "🔪", "🍳", "🍲", "🥘", "🔥", "🧊", "🥗", "🫕", "🍰", "🍯", "🧂",
+];
+
 // ── ID generator (client-side only, never parsed or displayed) ────────────────
 function genId(prefix) {
   return `${prefix}${Date.now()}${Math.random()}`;
 }
 
-// ── Ingredient factories ──────────────────────────────────────────────────────
-
-// A raw ingredient (flour, butter, salt…)
+// ── Ingredient factory ────────────────────────────────────────────────────────
 export function newIngredient() {
   return { id: genId("i"), type: "ingredient", amount: "", unit: "cup", name: "" };
 }
 
-// A link to another saved recipe used as an ingredient.
-// recipeId is null until the user selects a recipe.
-export function newRecipeLink() {
-  return { id: genId("rl"), type: "recipe", amount: 1, unit: "recipe", recipeId: null, recipeName: "" };
-}
-
 // ── Step factories ────────────────────────────────────────────────────────────
-
 // Steps support sub-parts: Step 1, 1a, 1b … Step 2, 2a …
 // Shape: { id, text, substeps: [{ id, text }] }
 export function newStep() {
@@ -96,32 +88,20 @@ export function subLetter(idx) {
   return idx < 26 ? String.fromCharCode(97 + idx) : `s${idx + 1}`;
 }
 
-// ── Component factory ─────────────────────────────────────────────────────────
-// A component is a named sub-recipe. For simple recipes the name is empty —
-// the component IS the dish. For complex dishes each component is distinct:
-// "Buttermilk-Marinated Frying Chicken", "Down-Home Green Beans", etc.
-export function newComponent(name = "") {
+// ── Part factory ──────────────────────────────────────────────────────────────
+// A part is a named section/stage of the recipe. For a simple recipe the name is
+// blank — the part IS the dish. For multi-part dishes each part is distinct:
+// "The Sauce", "The Filling", "Assemble & Serve", etc.
+export function newPart(name = "") {
   return {
-    id:          genId("comp"),
+    id:          genId("part"),
     name,
-    yieldAmt:    "",   // numeric amount, scales with servings — e.g. 1, 4
-    yieldUnit:   "",   // label/unit — e.g. "qt.", "servings", "(1¼-lb.) portions"
-    ingredients: [newIngredient(), newIngredient(), newIngredient()],
-    steps:       [newStep(), newStep()],
-    holding:     "",   // storage/holding instructions — optional
-    notes:       "",   // chef's notes for this component — optional
+    description: "",   // one-line summary shown under the part name
+    icon:        "",   // optional emoji visual cue
+    ingredients: [newIngredient()],
+    steps:       [newStep()],
   };
 }
-
-// ── Parse a legacy free-text yield string into { yieldAmt, yieldUnit } ────────
-// Tries to extract a leading number (int or decimal). The remainder becomes unit.
-function parseYield(str) {
-  if (!str) return { yieldAmt: "", yieldUnit: "" };
-  const m = str.trim().match(/^(\d+(?:\.\d+)?)\s*(.*)/);
-  if (m) return { yieldAmt: m[1], yieldUnit: m[2].trim() };
-  return { yieldAmt: "", yieldUnit: str.trim() };
-}
-
 
 // ── Step normalization ────────────────────────────────────────────────────────
 // Accepts legacy flat-string steps OR current { id, text, substeps } shape.
@@ -165,54 +145,60 @@ export function normalizeIngredient(ing) {
   return { type: "ingredient", ...ing };
 }
 
+// ── Part normalization ────────────────────────────────────────────────────────
+// Migrates a legacy component ({ name, yield, holding, notes, ingredients, steps })
+// into the lean part shape, dropping fields the parts model no longer uses.
+function normalizePart(p) {
+  return {
+    id:          p.id || genId("part"),
+    name:        p.name || "",
+    description: p.description || "",
+    icon:        p.icon || "",
+    ingredients: (p.ingredients || []).map(normalizeIngredient),
+    steps:       normalizeSteps(p.steps),
+  };
+}
+
 // ── Recipe normalization ──────────────────────────────────────────────────────
-// Migrates old flat-shape recipes { ingredients[], steps[] } into the new
-// component-based shape { components[] }. Safe to run on already-migrated data.
+// Migrates any historical shape into the current `parts` shape. Idempotent and
+// safe to run repeatedly. Accepts:
+//   • new shape    — { parts:[…] }
+//   • component era — { components:[…] }
+//   • flat legacy   — { ingredients:[…], steps:[…] }
 export function normalizeRecipe(recipe) {
-  if (recipe.components && recipe.components.length > 0) {
-    // Already new shape — normalize ingredients and migrate legacy yield string
+  const rawParts = recipe.parts?.length ? recipe.parts
+    : recipe.components?.length ? recipe.components
+    : null;
+
+  if (rawParts) {
     return {
       ...recipe,
-      components: recipe.components.map(comp => {
-        const hasNewYield = "yieldAmt" in comp || "yieldUnit" in comp;
-        const yieldFields = hasNewYield ? {} : parseYield(comp.yield);
-        return {
-          ...comp,
-          ...yieldFields,
-          yield: undefined,   // drop legacy field
-          ingredients: (comp.ingredients || []).map(normalizeIngredient),
-          steps:       normalizeSteps(comp.steps),
-        };
-      }),
+      components: undefined,           // drop legacy alias
+      ingredients: undefined,
+      steps: undefined,
+      parts: rawParts.map(normalizePart),
     };
   }
 
-  // Legacy shape: wrap top-level ingredients + steps into a single component
+  // Flat legacy shape: wrap top-level ingredients + steps into a single part.
   return {
     ...recipe,
-    components: [
-      {
-        id:          genId("comp"),
-        name:        "",
-        yieldAmt:    "",
-        yieldUnit:   "",
-        ingredients: (recipe.ingredients || []).map(normalizeIngredient),
-        steps:       normalizeSteps(recipe.steps),
-        holding:     "",
-        notes:       "",
-      },
-    ],
-    // Remove legacy top-level fields so nothing reads stale data
+    components: undefined,
     ingredients: undefined,
-    steps:       undefined,
+    steps: undefined,
+    parts: [normalizePart({
+      ingredients: recipe.ingredients,
+      steps:       recipe.steps,
+    })],
   };
 }
 
 // ── Shopping list aggregation ─────────────────────────────────────────────────
-// Flattens all components' ingredients into a single list for the shopping list.
-// Recipe-link ingredients are included as a named item ("1 recipe Pastry Cream Filling").
+// Flattens every part's ingredients into a single list for the shopping list.
+// Tolerant of un-normalized recipes (reads parts, then legacy components).
 export function allIngredients(recipe) {
-  return (recipe.components || []).flatMap(c => c.ingredients || []);
+  const parts = recipe.parts || recipe.components || [];
+  return parts.flatMap(p => p.ingredients || []);
 }
 
 // ── Formatters ────────────────────────────────────────────────────────────────

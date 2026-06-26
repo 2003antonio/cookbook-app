@@ -2,19 +2,24 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase }                         from "../services/supabaseClient";
 import { SEED_RECIPES }                     from "../data/seeds";
 import { recipeToRow, rowToRecipe }         from "../services/recipeService";
+import { normalizeRecipe }                  from "../models/recipe";
+
+// Seeds are authored in the legacy `components` shape — migrate to `parts` once
+// up front so every recipe in state has a consistent shape.
+const SEED_PARTS = SEED_RECIPES.map(normalizeRecipe);
 
 // ── useRecipes ────────────────────────────────────────────────────────────────
 // Manages the recipe list. Signed-out users see the read-only seed set;
 // signed-in users read/write from Supabase with optimistic local updates.
 export function useRecipes(userId) {
-  const [recipes, setRecipes] = useState(SEED_RECIPES);
+  const [recipes, setRecipes] = useState(SEED_PARTS);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     if (!userId) {
-      setRecipes(SEED_RECIPES);
+      setRecipes(SEED_PARTS);
       setLoading(false);
       return;
     }

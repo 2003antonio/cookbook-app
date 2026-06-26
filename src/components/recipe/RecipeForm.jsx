@@ -1,12 +1,28 @@
-import { useState, useRef, useEffect } from "react";
-import { StarRating } from "../ui/StarRating";
-import { Field }      from "../ui/Field";
-import { showToast }  from "../ui/ToastHost";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { StarRating }    from "../ui/StarRating";
+import { Field }         from "../ui/Field";
+import { showToast }     from "../ui/ToastHost";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import {
-  UNITS, CATEGORY_OPTIONS, CARD_COLORS,
-  newIngredient, newRecipeLink, newStep, newSubstep,
-  subLetter, normalizeRecipe, newComponent,
+  UNITS, CATEGORY_OPTIONS, CARD_COLORS, PART_ICONS,
+  newIngredient, newStep, newSubstep, subLetter, normalizeRecipe, newPart,
 } from "../../models/recipe";
+
+// ── Folder theme ────────────────────────────────────────────────────────────
+// Manila card-stock palette — the whole modal is one tan file folder.
+const MANILA       = "#E7D7A4";   // folder body / front flap
+const MANILA_LIGHT = "#F1E4BD";   // edge catching the light / hover
+const MANILA_DARK  = "#D6C384";   // tabs sitting behind the front (recessed)
+const MANILA_EDGE  = "#BFAB6E";   // card-stock cut edges / borders
+const MANILA_SEAM  = "#AC9759";   // fold + seam shadow lines
+const PAPER        = "#FCFAF3";   // the sheet of paper inside the folder
+const FOLDER_INK   = "#5F4F2A";   // stamped-label brown
+
+// Soft tints for the numbered part badges (cycled by index).
+const PART_TINTS = [
+  "rgba(139,92,246,0.20)", "rgba(232,98,26,0.18)", "rgba(34,197,94,0.18)",
+  "rgba(59,130,246,0.18)", "rgba(236,72,153,0.18)", "rgba(245,158,11,0.20)",
+];
 
 // ── Amount parser (supports fractions and decimals) ───────────────────────────
 function parseAmount(val) {
@@ -19,174 +35,159 @@ function parseAmount(val) {
   return parseFloat(str) || 0;
 }
 
-const FORM_TABS = ["details", "ingredients", "steps", "notes"];
-
 function blankForm() {
   return {
     name: "", category: "Main Dish", prepTime: "", cookTime: "",
     baseServings: 4, color: CARD_COLORS[0], rating: 0,
     tags: [], notes: "",
-    ingredients: [newIngredient()],
-    steps: [newStep()],
-    components: [newComponent()],
+    parts: [newPart()],
   };
 }
 
 // ── RecipeForm ────────────────────────────────────────────────────────────────
-export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
+export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }) {
   let _mouseDownOnBackdrop = false;
 
   const [form, setForm] = useState(() => {
     if (!initial) return blankForm();
     const normalized = normalizeRecipe(initial);
-    const comps = (normalized.components || []).map(c => ({
-      ...c,
-      ingredients: c.ingredients?.length ? c.ingredients : [newIngredient()],
-      steps:       c.steps?.length       ? c.steps       : [newStep()],
-    }));
-    // Top-level ingredients/steps only matter in simple mode (0 components).
-    // When components exist, keep defaults ready in case user removes all components.
-    const hasComponents = comps.length > 0;
     return {
       ...normalized,
-      tags:        normalized.tags || [],
-      ingredients: hasComponents ? [newIngredient()] : (normalized.ingredients?.length ? normalized.ingredients : [newIngredient()]),
-      steps:       hasComponents ? [newStep()]        : (normalized.steps?.length       ? normalized.steps       : [newStep()]),
-      components:  comps,
+      tags:  normalized.tags || [],
+      notes: normalized.notes || "",
+      parts: normalized.parts?.length ? normalized.parts : [newPart()],
     };
   });
 
-  const isPrefillMode = !!initial?._prefill;
-  const [activeTab,      setActiveTab]      = useState("details");
-  const [activeCompIdx,  setActiveCompIdx]  = useState(0);
-  const cancelPickingRef = useRef(null);
-  const [tagInput,       setTagInput]       = useState("");
-  const [errors,         setErrors]         = useState({});
-  const [categoryOpen,   setCategoryOpen]   = useState(false);
-  const categoryRef = useRef(null);
-  const bodyRef   = useRef(null);
-  const pickerRef = useRef(null);
+  const isExistingRecipe = !!initial?.id;
+  const initialSnapshotRef = useRef(JSON.stringify(form));
+
+  const [activeTab,     setActiveTab]     = useState("details");
+  const [activePartIdx, setActivePartIdx] = useState(0);
+  const [tagInput,      setTagInput]      = useState("");
+  const [errors,        setErrors]        = useState({});
+  const [categoryOpen,  setCategoryOpen]  = useState(false);
+  const [iconPickerFor, setIconPickerFor] = useState(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [showExitConfirm,   setShowExitConfirm]   = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const categoryRef   = useRef(null);
+  const iconPickerRef = useRef(null);
+  const bodyRef       = useRef(null);
   const scrollToBottom = () => requestAnimationFrame(() => requestAnimationFrame(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }));
 
+  // ── Modes & active part ──────────────────────────────────────────────────────
+  const multiPart  = form.parts.length > 1;
+  const formTabs   = useMemo(() => (
+    multiPart
+      ? ["details", "parts", "ingredients", "steps", "notes"]
+      : ["details", "ingredients", "steps", "notes"]
+  ), [multiPart]);
+  const activePart = form.parts[activePartIdx] ?? form.parts[0];
+
+  // Keep activeTab / activePartIdx valid as parts are added/removed.
+  useEffect(() => {
+    if (!formTabs.includes(activeTab)) setActiveTab("details");
+  }, [formTabs, activeTab]);
+  useEffect(() => {
+    if (activePartIdx > form.parts.length - 1) setActivePartIdx(form.parts.length - 1);
+  }, [form.parts.length, activePartIdx]);
+
   // ── Form-level setters ───────────────────────────────────────────────────────
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
-  // ── Component setters ────────────────────────────────────────────────────────
-  const updateComp = (compId, changes) =>
-    set("components", form.components.map(c => c.id === compId ? { ...c, ...changes } : c));
+  // ── Part setters ─────────────────────────────────────────────────────────────
+  const updatePart = (partId, changes) =>
+    set("parts", form.parts.map(p => p.id === partId ? { ...p, ...changes } : p));
 
-  const addComponent = () => {
-    const comp = newComponent();
-    set("components", [...form.components, comp]);
-    setActiveCompIdx(form.components.length);
+  const addPart = () => {
+    set("parts", [...form.parts, newPart()]);
+    setActivePartIdx(form.parts.length);
     scrollToBottom();
   };
 
-  const removeComponent = (compId) => {
-    const next = form.components.filter(c => c.id !== compId);
-    set("components", next);
-    setActiveCompIdx(i => Math.min(i, Math.max(next.length - 1, 0)));
+  const removePart = (partId) =>
+    set("parts", form.parts.filter(p => p.id !== partId));
+
+  const movePart = (idx, dir) => {
+    const j = idx + dir;
+    if (j < 0 || j >= form.parts.length) return;
+    const next = [...form.parts];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    set("parts", next);
   };
 
-  // ── Simple-mode (0 components) vs component-mode ────────────────────────────
-  const simpleMode = form.components.length === 0;
-
-  // ── Ingredient/step setters (scoped to active component) ─────────────────────
-  const activeComp = form.components[activeCompIdx] ?? form.components[0];
-
-  // Cancel any open recipe/component picker (removes the transient row)
-  const cancelPicking = () =>
-    setForm(f => {
-      if (f.components.length === 0) {
-        const pickingIng = f.ingredients.find(i => i._picking);
-        if (!pickingIng) return f;
-        return { ...f, ingredients: f.ingredients.filter(i => i.id !== pickingIng.id) };
-      }
-      const comp = f.components[activeCompIdx] ?? f.components[0];
-      if (!comp) return f;
-      const pickingIng = comp.ingredients.find(i => i._picking);
-      if (!pickingIng) return f;
-      return {
-        ...f,
-        components: f.components.map(c =>
-          c.id === comp.id
-            ? { ...c, ingredients: c.ingredients.filter(i => i.id !== pickingIng.id) }
-            : c
-        ),
-      };
-    });
-  cancelPickingRef.current = cancelPicking;
-
-  // Close picker on click-outside
-  useEffect(() => {
-    const hasPicker = activeIngredients.some(i => i._picking);
-    if (!hasPicker) return;
-    const handler = (e) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target))
-        cancelPickingRef.current();
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  });
-
-  // Wrappers that dismiss the picker before switching context
-  const switchTab  = (tab) => { cancelPickingRef.current(); setActiveTab(tab); };
-  const switchComp = (idx) => { cancelPickingRef.current(); setActiveCompIdx(idx); };
-
-  // Close category dropdown on click-outside
-  useEffect(() => {
-    if (!categoryOpen) return;
-    const handler = (e) => {
-      if (categoryRef.current && !categoryRef.current.contains(e.target)) setCategoryOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [categoryOpen]);
-
-  // ── Active ingredients/steps: top-level in simple mode, component-scoped otherwise ──
-  const activeIngredients = simpleMode ? form.ingredients : activeComp?.ingredients ?? [];
-  const activeSteps       = simpleMode ? form.steps       : activeComp?.steps       ?? [];
-
-  const setIngList  = (ings)  => simpleMode ? set("ingredients", ings) : updateComp(activeComp.id, { ingredients: ings });
-  const setStepList = (steps) => simpleMode ? set("steps", steps)       : updateComp(activeComp.id, { steps });
-
-  const setIng = (ingId, k, v) =>
-    setIngList(activeIngredients.map(i => i.id === ingId ? { ...i, [k]: v } : i));
-
-  const addIng        = ()         => { cancelPickingRef.current(); setIngList([...activeIngredients, newIngredient()]); scrollToBottom(); };
-  const addPickerRow  = ()         => { setIngList([...activeIngredients, { ...newRecipeLink(), _picking: true }]); scrollToBottom(); };
-  const resolvePickerRow = (ingId, compName, recipe) => {
-    setIngList(activeIngredients.map(i => i.id === ingId
-      ? compName
-        ? { ...i, recipeName: compName, recipeId: null, isCompRef: true, _picking: false }
-        : { ...i, recipeName: recipe.name, recipeId: recipe.id, _picking: false }
-      : i
-    ));
+  // Convert a simple recipe into a multi-part one.
+  const breakIntoParts = () => {
+    set("parts", [...form.parts, newPart()]);
+    setActivePartIdx(form.parts.length);
+    setActiveTab("parts");
+    scrollToBottom();
   };
-  const removeIng    = (id)       => setIngList(activeIngredients.filter(i => i.id !== id));
 
-  const setStepText    = (stepId, val)       => setStepList(activeSteps.map(s => s.id === stepId ? { ...s, text: val } : s));
-  const addStep        = ()                  => { setStepList([...activeSteps, newStep()]); scrollToBottom(); };
-  const removeStep     = (stepId)            => setStepList(activeSteps.filter(s => s.id !== stepId));
-  const addSubstep     = (stepId)            => { setStepList(activeSteps.map(s => s.id === stepId ? { ...s, substeps: [...s.substeps, newSubstep()] } : s)); scrollToBottom(); };
-  const setSubstepText = (stepId, subId, v)  => setStepList(activeSteps.map(s => s.id === stepId ? { ...s, substeps: s.substeps.map(sub => sub.id === subId ? { ...sub, text: v } : sub) } : s));
-  const removeSubstep  = (stepId, subId)     => setStepList(activeSteps.map(s => s.id === stepId ? { ...s, substeps: s.substeps.filter(sub => sub.id !== subId) } : s));
+  // ── Ingredient / step setters (scoped to the active part) ────────────────────
+  const activeIngredients = activePart?.ingredients ?? [];
+  const activeSteps       = activePart?.steps       ?? [];
+  const setIngList  = (ings)  => updatePart(activePart.id, { ingredients: ings });
+  const setStepList = (steps) => updatePart(activePart.id, { steps });
+
+  const setIng       = (ingId, k, v) => setIngList(activeIngredients.map(i => i.id === ingId ? { ...i, [k]: v } : i));
+  const addIng       = ()            => { setIngList([...activeIngredients, newIngredient()]); scrollToBottom(); };
+  const removeIng    = (id)          => setIngList(activeIngredients.filter(i => i.id !== id));
+
+  const setStepText    = (stepId, val)      => setStepList(activeSteps.map(s => s.id === stepId ? { ...s, text: val } : s));
+  const addStep        = ()                 => { setStepList([...activeSteps, newStep()]); scrollToBottom(); };
+  const removeStep     = (stepId)           => setStepList(activeSteps.filter(s => s.id !== stepId));
+  const addSubstep     = (stepId)           => { setStepList(activeSteps.map(s => s.id === stepId ? { ...s, substeps: [...s.substeps, newSubstep()] } : s)); scrollToBottom(); };
+  const setSubstepText = (stepId, subId, v) => setStepList(activeSteps.map(s => s.id === stepId ? { ...s, substeps: s.substeps.map(sub => sub.id === subId ? { ...sub, text: v } : sub) } : s));
+  const removeSubstep  = (stepId, subId)    => setStepList(activeSteps.map(s => s.id === stepId ? { ...s, substeps: s.substeps.filter(sub => sub.id !== subId) } : s));
 
   // ── Tag setters ──────────────────────────────────────────────────────────────
   const addTag    = () => { const t = tagInput.trim(); if (t && !form.tags.includes(t)) set("tags", [...form.tags, t]); setTagInput(""); };
   const removeTag = t  => set("tags", form.tags.filter(x => x !== t));
 
+  // ── Close dropdowns on click-outside ─────────────────────────────────────────
+  useEffect(() => {
+    if (!categoryOpen) return;
+    const handler = (e) => { if (categoryRef.current && !categoryRef.current.contains(e.target)) setCategoryOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [categoryOpen]);
+
+  useEffect(() => {
+    if (!iconPickerFor) return;
+    const handler = (e) => { if (iconPickerRef.current && !iconPickerRef.current.contains(e.target)) setIconPickerFor(null); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [iconPickerFor]);
+
+  // ── Exit / discard / delete ──────────────────────────────────────────────────
+  const attemptCancel = () => {
+    if (JSON.stringify(form) !== initialSnapshotRef.current) setShowExitConfirm(true);
+    else onCancel();
+  };
+
+  const exitDialog = isExistingRecipe
+    ? { icon: "⚠️", iconBg: "#FEF3C7", title: "Discard your changes?", subtitle: "All unsaved changes will be lost.", cancelLabel: "No, Go Back", confirmLabel: "Yes, Discard" }
+    : { icon: "✕",  iconBg: "#FEE2E2", title: "Exit without saving?",  subtitle: "All unsaved changes will be lost.", cancelLabel: "Stay Here",   confirmLabel: "Exit" };
+
+  const handleDelete = () => {
+    const name = initial.name;
+    onDelete(initial.id);
+    showToast(`"${name}" successfully deleted`);
+    onCancel();
+  };
+
   // ── Save ─────────────────────────────────────────────────────────────────────
   const handleSave = () => {
-    const e = {};
-    if (!form.name.trim()) { e.name = "Name is required"; setActiveTab("details"); }
-    if (Object.keys(e).length) { setErrors(e); return; }
+    if (!form.name.trim()) { setErrors({ name: "Name is required" }); setActiveTab("details"); return; }
 
     const cleanIngredients = (ings) => ings
-      .filter(i => i.type === "recipe" ? i.recipeName.trim() : i.name.trim())
-      .map(i => i.type === "recipe" ? (({ isCompRef, ...rest }) => rest)(i) : { ...i, amount: parseAmount(i.amount) });
+      .filter(i => i.type === "recipe" ? i.recipeName?.trim() : i.name.trim())
+      .map(i => i.type === "recipe" ? i : { ...i, amount: parseAmount(i.amount) });
     const cleanSteps = (steps) => steps
       .map(s => ({
         id:       s.id,
@@ -195,24 +196,28 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
       }))
       .filter(s => s.text || s.substeps.length > 0);
 
-    const cleanComponents = form.components.map(comp => ({
-      ...comp,
-      ingredients: cleanIngredients(comp.ingredients),
-      steps:       cleanSteps(comp.steps),
+    let cleanParts = form.parts.map(part => ({
+      id:          part.id,
+      name:        part.name.trim(),
+      description: part.description.trim(),
+      icon:        part.icon || "",
+      ingredients: cleanIngredients(part.ingredients),
+      steps:       cleanSteps(part.steps),
     }));
+    // Drop fully-empty extra parts, but always keep at least one.
+    cleanParts = cleanParts.filter(p => p.name || p.description || p.ingredients.length || p.steps.length);
+    if (cleanParts.length === 0) cleanParts = [{ ...form.parts[0], name: "", description: "", icon: "", ingredients: [], steps: [] }];
 
     const recipeName = form.name.trim();
-    const isSimpleMode = form.components.length === 0;
     onSave({
       ...form,
+      name:         recipeName,
       prepTime:     Number(form.prepTime)     || 0,
       cookTime:     Number(form.cookTime)     || 0,
       baseServings: Number(form.baseServings) || 4,
-      ingredients:  isSimpleMode ? cleanIngredients(form.ingredients) : undefined,
-      steps:        isSimpleMode ? cleanSteps(form.steps)             : undefined,
-      components:   cleanComponents,
+      parts:        cleanParts,
     });
-    showToast(`"${recipeName}" successfully ${initial?.id ? "saved" : "created"}`);
+    showToast(`"${recipeName}" successfully ${isExistingRecipe ? "saved" : "created"}`);
   };
 
   // ── Styles ───────────────────────────────────────────────────────────────────
@@ -223,42 +228,43 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
     background: "white", outline: "none", width: "100%", transition: "border-color 0.15s",
   });
 
-  // ── Tab badge counts ─────────────────────────────────────────────────────────
-  const countIngs  = (ings)  => ings.filter(i => (i.type === "recipe" ? i.recipeName : i.name).trim()).length;
+  // ── Tab counts / labels ──────────────────────────────────────────────────────
+  const countIngs  = (ings)  => ings.filter(i => (i.type === "recipe" ? i.recipeName : i.name)?.trim()).length;
   const countSteps = (steps) => steps.reduce((acc, s) => acc + (s.text.trim() ? 1 : 0) + s.substeps.filter(sub => sub.text.trim()).length, 0);
-  const totalIngCount  = simpleMode ? countIngs(form.ingredients)  : form.components.reduce((n, c) => n + countIngs(c.ingredients), 0);
-  const totalStepCount = simpleMode ? countSteps(form.steps)       : form.components.reduce((n, c) => n + countSteps(c.steps), 0);
+  const totalIngCount  = form.parts.reduce((n, p) => n + countIngs(p.ingredients), 0);
+  const totalStepCount = form.parts.reduce((n, p) => n + countSteps(p.steps), 0);
   const noteLineCount  = form.notes.split("\n").filter(l => l.trim()).length;
 
   const tabLabel = tab => {
+    if (tab === "parts")                            return `Parts (${form.parts.length})`;
     if (tab === "ingredients" && totalIngCount  > 0) return `Ingredients (${totalIngCount})`;
     if (tab === "steps"       && totalStepCount > 0) return `Steps (${totalStepCount})`;
     if (tab === "notes"       && noteLineCount  > 0) return `Notes (${noteLineCount})`;
     return tab.charAt(0).toUpperCase() + tab.slice(1);
   };
 
-  const currentTabIdx    = FORM_TABS.indexOf(activeTab);
-  const isMultiComponent = form.components.length > 1;
+  const currentTabIdx = formTabs.indexOf(activeTab);
+  const titleText = `${isExistingRecipe ? "Edit" : "New"}${multiPart ? " Multi-part" : ""} Recipe`;
 
-  // ── Component selector pill row ───────────────────────────────────────────────
-  const ComponentSelector = () => (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
-        {form.components.map((comp, idx) => (
-          <button
-            key={comp.id}
-            onClick={() => switchComp(idx)}
-            style={{
-              flexShrink: 0, padding: "5px 12px", borderRadius: 999, fontSize: 12.5, fontWeight: 500,
-              background: activeCompIdx === idx ? "var(--fire)" : "var(--surface)",
-              color:      activeCompIdx === idx ? "white"        : "var(--ink-soft)",
-              border:     activeCompIdx === idx ? "none"         : "1.5px solid var(--border)",
-            }}
-          >
-            {comp.name || `Component ${idx + 1}`}
-          </button>
-        ))}
-      </div>
+  // ── Part selector pill row (Ingredients / Steps tabs, multi-part only) ────────
+  const PartSelector = () => (
+    <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 14 }}>
+      {form.parts.map((part, idx) => (
+        <button
+          key={part.id}
+          onClick={() => setActivePartIdx(idx)}
+          style={{
+            flexShrink: 0, padding: "5px 12px", borderRadius: 999, fontSize: 12.5, fontWeight: 500,
+            display: "flex", alignItems: "center", gap: 5,
+            background: activePartIdx === idx ? "var(--fire)" : "var(--surface)",
+            color:      activePartIdx === idx ? "white"        : "var(--ink-soft)",
+            border:     activePartIdx === idx ? "none"         : "1.5px solid var(--border)",
+          }}
+        >
+          {part.icon && <span>{part.icon}</span>}
+          {part.name || `Part ${idx + 1}`}
+        </button>
+      ))}
     </div>
   );
 
@@ -270,56 +276,77 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
         display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
       }}
       onMouseDown={e => { _mouseDownOnBackdrop = e.target === e.currentTarget; }}
-      onClick={e => { if (e.target === e.currentTarget && _mouseDownOnBackdrop) onCancel(); }}
+      onClick={e => { if (e.target === e.currentTarget && _mouseDownOnBackdrop) attemptCancel(); }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: "white", borderRadius: "var(--r-lg)", width: "100%",
-          maxWidth: 620, maxHeight: "90vh", display: "flex", flexDirection: "column",
-          boxShadow: "var(--shadow-lg)", overflow: "hidden",
+          width: "100%", maxWidth: 560, maxHeight: "90vh",
+          display: "flex", flexDirection: "column",
+          borderRadius: "12px", overflow: "hidden",
+          background: MANILA,
+          backgroundImage: `linear-gradient(180deg, ${MANILA_LIGHT} 0%, ${MANILA} 16%, ${MANILA} 90%, ${MANILA_DARK} 100%)`,
+          border: `1px solid ${MANILA_EDGE}`,
+          boxShadow: "0 24px 60px rgba(60,45,15,0.45), 0 4px 14px rgba(0,0,0,0.22)",
         }}
       >
-        {/* Header */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "20px 24px 0", borderTop: `4px solid ${form.color}`, flexShrink: 0,
-        }}>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 600 }}>
-            {isPrefillMode ? "Save as Standalone Recipe" : (initial?.id ? "Edit Recipe" : "New Recipe")}
-          </h2>
-          <button onClick={onCancel} style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--surface)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        {/* Folder index tabs — sticking up along the top edge */}
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, padding: "10px 10px 0", overflowX: "auto", flexShrink: 0 }}>
+          {formTabs.map(tab => {
+            const active   = activeTab === tab;
+            const tabError = tab === "details" && errors.name;
+            return (
+              <button key={tab} onClick={() => setActiveTab(tab)} style={{
+                flexShrink: 0, whiteSpace: "nowrap",
+                padding: active ? "8px 14px 12px" : "6px 14px 9px",
+                borderRadius: "9px 9px 0 0",
+                border: `1px solid ${MANILA_EDGE}`, borderBottom: "none",
+                marginBottom: active ? -1.5 : 3,
+                background: active ? MANILA : MANILA_DARK,
+                color: tabError ? "#C0392B" : FOLDER_INK,
+                fontFamily: "var(--font-display)",
+                fontSize: 12.5, fontWeight: active ? 700 : 500,
+                opacity: active ? 1 : 0.92,
+                boxShadow: active
+                  ? "0 -2px 4px rgba(90,70,25,0.10)"
+                  : "inset 0 -4px 6px -2px rgba(120,98,45,0.30)",
+                zIndex: active ? 3 : 1, transition: "all 0.15s",
+              }}>
+                {tabLabel(tab)}{tabError ? " ⚠" : ""}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Tabs — hidden in prefill mode (details only) */}
-        {!isPrefillMode && (
-          <div style={{ display: "flex", borderBottom: "1px solid var(--border)", padding: "0 24px", gap: 4, flexShrink: 0, overflowX: "auto" }}>
-            {FORM_TABS.map(tab => (
-              <button key={tab} onClick={() => switchTab(tab)} style={{
-                padding: "12px 10px", fontSize: 13, fontWeight: 500,
-                color: activeTab === tab ? "var(--fire)" : (tab === "details" && errors.name ? "#ef4444" : "var(--ink-soft)"),
-                borderBottom: activeTab === tab ? "2px solid var(--fire)" : "2px solid transparent",
-                marginBottom: -1, whiteSpace: "nowrap", transition: "color 0.15s",
-              }}>
-                {tabLabel(tab)}
-                {tab === "details" && errors.name && <span style={{ marginLeft: 4, fontSize: 11 }}>⚠</span>}
-              </button>
-            ))}
+        {/* Folder interior */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, borderTop: `1.5px solid ${MANILA_SEAM}` }}>
+          {/* Stamped label + paperclip + close */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px 8px", flexShrink: 0, gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+              <span style={{ fontSize: 15, flexShrink: 0 }}>🗂️</span>
+              <span style={{
+                fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15, color: FOLDER_INK,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>{titleText}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 16, transform: "rotate(20deg)", display: "inline-block" }}>📎</span>
+              <button onClick={attemptCancel} style={{ width: 26, height: 26, borderRadius: "50%", background: MANILA_LIGHT, border: `1px solid ${MANILA_EDGE}`, color: FOLDER_INK, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+            </div>
           </div>
-        )}
-        {isPrefillMode && <div style={{ borderBottom: "1px solid var(--border)" }} />}
 
-        {/* Body */}
-        <div ref={bodyRef} style={{ overflowY: "auto", padding: "16px 24px", display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
+          {/* Sheet of paper tucked inside the folder */}
+          <div style={{ flex: 1, display: "flex", minHeight: 0, padding: "0 12px 12px" }}>
+            <div ref={bodyRef} style={{
+              flex: 1, overflowY: "auto", background: PAPER,
+              borderRadius: "4px", border: `1px solid ${MANILA_EDGE}`,
+              boxShadow: "0 1px 5px rgba(80,60,20,0.18)",
+              padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14,
+            }}>
 
           {/* ── Details ── */}
           {activeTab === "details" && (
             <>
-              {isPrefillMode && (
-                <p style={{ fontSize: 12.5, color: "var(--ink-faint)", background: "var(--surface)", padding: "10px 12px", borderRadius: "var(--r-sm)", borderLeft: "3px solid var(--fire)" }}>
-                  Ingredients and steps are carried over from the component. Fill in the recipe details below.
-                </p>
-              )}
               <Field label="Recipe name *">
                 <input
                   style={inputStyle(errors.name)} value={form.name}
@@ -331,29 +358,23 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
 
               <Field label="Category">
                 <div ref={categoryRef} style={{ position: "relative" }}>
-                  {/* Trigger button */}
                   <button
                     onClick={() => setCategoryOpen(o => !o)}
-                    style={{
-                      ...inputStyle(), display: "flex", alignItems: "center", justifyContent: "space-between",
-                      cursor: "pointer", textAlign: "left",
-                    }}
+                    style={{ ...inputStyle(), display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", textAlign: "left" }}
                   >
                     <span>
                       {CATEGORY_OPTIONS.find(c => c.name === form.category)?.emoji}{" "}
                       {form.category}
                     </span>
-                    <span style={{ fontSize: 10, color: "var(--ink-faint)", marginLeft: 8 }}>
-                      {categoryOpen ? "▲" : "▼"}
-                    </span>
+                    <span style={{ fontSize: 10, color: "var(--ink-faint)", marginLeft: 8 }}>{categoryOpen ? "▲" : "▼"}</span>
                   </button>
-                  {/* Dropdown grid */}
                   {categoryOpen && (
                     <div style={{
                       position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 50,
                       background: "white", border: "1.5px solid var(--border)", borderRadius: "var(--r-sm)",
                       boxShadow: "var(--shadow-lg)", padding: 8,
                       display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4,
+                      maxHeight: 280, overflowY: "auto", overscrollBehavior: "contain",
                     }}>
                       {CATEGORY_OPTIONS.map(c => (
                         <button
@@ -365,8 +386,7 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
                             fontWeight: form.category === c.name ? 600 : 400,
                             background: form.category === c.name ? "var(--fire-dim)" : "transparent",
                             color: form.category === c.name ? "var(--fire)" : "var(--ink)",
-                            textAlign: "left", cursor: "pointer",
-                            transition: "background 0.1s",
+                            textAlign: "left", cursor: "pointer", transition: "background 0.1s",
                           }}
                           onMouseEnter={e => { if (form.category !== c.name) e.currentTarget.style.background = "var(--surface)"; }}
                           onMouseLeave={e => { if (form.category !== c.name) e.currentTarget.style.background = "transparent"; }}
@@ -409,7 +429,6 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
                         onMouseLeave={e => e.target.style.transform = "scale(1)"}
                       />
                     ))}
-                    {/* Custom color picker as 6th option */}
                     <div style={{ position: "relative", width: 24, height: 24, flexShrink: 0 }}>
                       <div style={{
                         width: 24, height: 24, borderRadius: "50%",
@@ -421,13 +440,8 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
                         pointerEvents: "none",
                       }} />
                       <input
-                        type="color"
-                        value={form.color}
-                        onChange={e => set("color", e.target.value)}
-                        style={{
-                          position: "absolute", inset: 0, opacity: 0,
-                          width: "100%", height: "100%", cursor: "pointer",
-                        }}
+                        type="color" value={form.color} onChange={e => set("color", e.target.value)}
+                        style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", cursor: "pointer" }}
                         title="Custom color"
                       />
                     </div>
@@ -456,154 +470,161 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
                   </div>
                 )}
               </Field>
-
-              {/* Components manager — hidden when saving a component as standalone */}
-              {!isPrefillMode && <Field label="Components">
-                <p style={{ fontSize: 12, color: "var(--ink-faint)", marginBottom: 8 }}>
-                  Simple recipes have one component or none. Add more for complex dishes with separate preparations.
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {form.components.map((comp, idx) => (
-                    <div key={comp.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <input
-                        style={{ ...inputStyle(), flex: 1 }}
-                        value={comp.name}
-                        onChange={e => updateComp(comp.id, { name: e.target.value })}
-                        placeholder={idx === 0 && form.components.length === 1 ? "Single component (leave blank or remove)" : `Component ${idx + 1} name`}
-                      />
-                      <input
-                        style={{ ...inputStyle(), width: 52 }}
-                        type="text" inputMode="decimal"
-                        value={comp.yieldAmt}
-                        onChange={e => updateComp(comp.id, { yieldAmt: e.target.value })}
-                        placeholder="Qty"
-                      />
-                      <input
-                        style={{ ...inputStyle(), width: 90 }}
-                        value={comp.yieldUnit}
-                        onChange={e => updateComp(comp.id, { yieldUnit: e.target.value })}
-                        placeholder="Unit"
-                      />
-                      <button
-                        onClick={() => removeComponent(comp.id)}
-                        style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                      >✕</button>
-                    </div>
-                  ))}
-                  <button onClick={addComponent} style={{ fontSize: 13, color: "var(--fire)", fontWeight: 500, textAlign: "left", padding: "4px 0" }}>
-                    + Add component
-                  </button>
-                </div>
-              </Field>}
             </>
+          )}
+
+          {/* ── Parts (multi-part only) ── */}
+          {activeTab === "parts" && (
+            <Field label="Parts">
+              {!bannerDismissed && (
+                <div style={{
+                  display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12,
+                  padding: "10px 12px", background: "rgba(172,151,89,0.12)",
+                  border: `1px solid ${MANILA_EDGE}`, borderRadius: "var(--r-sm)",
+                }}>
+                  <span style={{ fontSize: 14, flexShrink: 0 }}>🗒️</span>
+                  <p style={{ fontSize: 12.5, color: "var(--ink-soft)", lineHeight: 1.5, flex: 1 }}>
+                    A multi-part recipe is made up of sections or stages — a sauce, a filling, the assembly.
+                    Add, reorder, and edit each part below.
+                  </p>
+                  <button onClick={() => setBannerDismissed(true)} style={{ fontSize: 12, color: "var(--ink-faint)", flexShrink: 0 }}>✕</button>
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {form.parts.map((part, idx) => {
+                  const ingN  = countIngs(part.ingredients);
+                  const stepN = countSteps(part.steps);
+                  return (
+                    <div key={part.id} style={{
+                      border: `1px solid ${MANILA_EDGE}`, borderRadius: "var(--r-md)",
+                      padding: "10px 12px", background: "rgba(172,151,89,0.07)",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{
+                          width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
+                          background: PART_TINTS[idx % PART_TINTS.length], color: "var(--ink)",
+                          fontSize: 12.5, fontWeight: 700,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>{idx + 1}</span>
+
+                        <input
+                          style={{ ...inputStyle(), flex: 1, fontWeight: 600 }}
+                          value={part.name}
+                          onChange={e => updatePart(part.id, { name: e.target.value })}
+                          placeholder={`Part ${idx + 1} name (e.g. The Sauce)`}
+                        />
+
+                        {/* Icon picker */}
+                        <div style={{ position: "relative", flexShrink: 0 }}>
+                          <button
+                            onClick={() => setIconPickerFor(p => p === part.id ? null : part.id)}
+                            title="Pick an icon"
+                            style={{
+                              width: 36, height: 36, borderRadius: "var(--r-sm)", fontSize: 17,
+                              border: "1.5px solid var(--border)", background: "var(--surface)",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                            }}
+                          >{part.icon || "＋"}</button>
+                          {iconPickerFor === part.id && (
+                            <div ref={iconPickerRef} style={{
+                              position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 60,
+                              background: "white", border: "1.5px solid var(--border)", borderRadius: "var(--r-sm)",
+                              boxShadow: "var(--shadow-lg)", padding: 8,
+                              display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 4, width: 232,
+                            }}>
+                              {PART_ICONS.map(emo => (
+                                <button key={emo}
+                                  onClick={() => { updatePart(part.id, { icon: part.icon === emo ? "" : emo }); setIconPickerFor(null); }}
+                                  style={{
+                                    width: 32, height: 32, borderRadius: "var(--r-sm)", fontSize: 17,
+                                    background: part.icon === emo ? "var(--fire-dim)" : "transparent",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                  }}
+                                  onMouseEnter={e => { if (part.icon !== emo) e.currentTarget.style.background = "var(--surface)"; }}
+                                  onMouseLeave={e => { if (part.icon !== emo) e.currentTarget.style.background = "transparent"; }}
+                                >{emo}</button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Reorder */}
+                        <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+                          <button onClick={() => movePart(idx, -1)} disabled={idx === 0}
+                            style={{ fontSize: 10, color: "var(--ink-faint)", opacity: idx === 0 ? 0.25 : 1, lineHeight: 1 }}>▲</button>
+                          <button onClick={() => movePart(idx, 1)} disabled={idx === form.parts.length - 1}
+                            style={{ fontSize: 10, color: "var(--ink-faint)", opacity: idx === form.parts.length - 1 ? 0.25 : 1, lineHeight: 1 }}>▼</button>
+                        </div>
+
+                        <button onClick={() => removePart(part.id)}
+                          style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                      </div>
+
+                      <input
+                        style={{ ...inputStyle(), marginTop: 8, fontSize: 12.5 }}
+                        value={part.description}
+                        onChange={e => updatePart(part.id, { description: e.target.value })}
+                        placeholder="Short description (e.g. Gather and prepare ingredients)"
+                      />
+
+                      <div style={{ display: "flex", gap: 14, marginTop: 8 }}>
+                        <button onClick={() => { setActivePartIdx(idx); setActiveTab("ingredients"); }}
+                          style={{ fontSize: 12, fontWeight: 500, color: "var(--fire)" }}>
+                          {ingN > 0 ? `${ingN} ingredient${ingN > 1 ? "s" : ""}` : "Add ingredients"} →
+                        </button>
+                        <button onClick={() => { setActivePartIdx(idx); setActiveTab("steps"); }}
+                          style={{ fontSize: 12, fontWeight: 500, color: "var(--fire)" }}>
+                          {stepN > 0 ? `${stepN} step${stepN > 1 ? "s" : ""}` : "Add steps"} →
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <button
+                  onClick={addPart}
+                  style={{
+                    border: "1.5px dashed var(--border)", borderRadius: "var(--r-md)",
+                    padding: "12px", fontSize: 13, fontWeight: 600, color: "var(--ink-soft)",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  }}
+                >＋ Add New Part</button>
+              </div>
+            </Field>
           )}
 
           {/* ── Ingredients ── */}
           {activeTab === "ingredients" && (
-            <Field label="Ingredients">
-              {isMultiComponent && <ComponentSelector />}
-              {(() => {
-                const otherNamedComps = simpleMode ? [] : form.components.filter(c => c.id !== activeComp.id && c.name.trim());
-                const btnStyle = { fontSize: 13, fontWeight: 500, color: "var(--fire)", padding: "4px 0" };
-
-                return (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {activeIngredients.map(ing => {
-                      const onRemove = () => removeIng(ing.id);
-                      const canRemove = activeIngredients.length > 1;
-
-                      /* Picker row — inline list where the ingredient would be */
-                      if (ing.type === "recipe" && ing._picking) {
-                        return (
-                          <div key={ing.id} ref={pickerRef} style={{ border: "1.5px solid var(--border)", borderRadius: "var(--r-sm)", overflow: "hidden" }}>
-                            <div style={{ padding: "5px 12px", background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
-                              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Saved Recipes</span>
-                            </div>
-                            {recipes.length === 0 && <p style={{ padding: "8px 12px", fontSize: 12.5, color: "var(--ink-faint)" }}>No saved recipes yet.</p>}
-                            {recipes.map(r => (
-                              <button key={r.id}
-                                onClick={() => resolvePickerRow(ing.id, null, r)}
-                                style={{ width: "100%", padding: "8px 12px", textAlign: "left", fontSize: 13, color: "var(--fire)", fontWeight: 500, borderBottom: "1px solid var(--border)", background: "white", cursor: "pointer", transition: "background 0.12s" }}
-                                onMouseEnter={e => e.currentTarget.style.background = "var(--surface)"}
-                                onMouseLeave={e => e.currentTarget.style.background = "white"}
-                              >{r.name}</button>
-                            ))}
-                            {otherNamedComps.length > 0 && (
-                              <>
-                                <div style={{ padding: "5px 12px", background: "var(--surface)", borderBottom: "1px solid var(--border)", borderTop: "1px solid var(--border)" }}>
-                                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-faint)" }}>Components</span>
-                                  <span style={{ fontSize: 10, color: "var(--ink-faint)", marginLeft: 6 }}>— not yet saved as recipes</span>
-                                </div>
-                                {otherNamedComps.map(c => (
-                                  <button key={c.id}
-                                    onClick={() => resolvePickerRow(ing.id, c.name, null)}
-                                    style={{ width: "100%", padding: "8px 12px", textAlign: "left", fontSize: 13, color: "var(--ink)", borderBottom: "1px solid var(--border)", background: "white", cursor: "pointer", transition: "background 0.12s" }}
-                                    onMouseEnter={e => e.currentTarget.style.background = "var(--surface)"}
-                                    onMouseLeave={e => e.currentTarget.style.background = "white"}
-                                  >{c.name}</button>
-                                ))}
-                              </>
-                            )}
-                          </div>
-                        );
-                      }
-
-                      /* Resolved recipe/component row */
-                      if (ing.type === "recipe") {
-                        const isComp = !!ing.isCompRef;
-                        return (
-                          <div key={ing.id} style={{ display: "flex", gap: 6, alignItems: "center", padding: "6px 10px", background: "rgba(232,98,26,0.05)", border: "1px solid rgba(232,98,26,0.18)", borderRadius: "var(--r-sm)" }}>
-                            <input
-                              style={{ ...inputStyle(), width: 52, background: "white" }} type="text" inputMode="decimal"
-                              value={ing.amount} onChange={e => setIng(ing.id, "amount", e.target.value)} placeholder="1"
-                            />
-                            <span style={{
-                              fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
-                              color: isComp ? "rgba(232,98,26,0.8)" : "var(--fire)",
-                              background: isComp ? "rgba(232,98,26,0.12)" : "var(--fire-dim)",
-                              padding: "2px 7px", borderRadius: 4, flexShrink: 0, whiteSpace: "nowrap",
-                            }}>{isComp ? "component" : "recipe"}</span>
-                            <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{ing.recipeName}</span>
-                            <button onClick={onRemove} style={{ width: 24, height: 24, borderRadius: "50%", background: "white", border: "1px solid var(--border)", fontSize: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-                          </div>
-                        );
-                      }
-
-                      /* Regular ingredient row */
-                      return (
-                        <div key={ing.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                          <input
-                            style={{ ...inputStyle(), width: 64 }} type="text" inputMode="decimal"
-                            value={ing.amount} onChange={e => setIng(ing.id, "amount", e.target.value)} placeholder="1"
-                          />
-                          <select style={{ ...inputStyle(), width: 80, cursor: "pointer" }} value={ing.unit} onChange={e => setIng(ing.id, "unit", e.target.value)}>
-                            {UNITS.filter(u => u.value !== "recipe").map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
-                          </select>
-                          <input style={{ ...inputStyle(), flex: 1 }} value={ing.name} onChange={e => setIng(ing.id, "name", e.target.value)} placeholder="ingredient" />
-                          <button onClick={onRemove} disabled={!canRemove}
-                            style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canRemove ? 1 : 0.3 }}>✕</button>
-                        </div>
-                      );
-                    })}
-
-                    {/* Action buttons */}
-                    <div style={{ display: "flex", gap: 16, marginTop: 2 }}>
-                      <button onClick={addIng} style={btnStyle}>+ Add ingredient</button>
-                      <button onClick={addPickerRow} style={{ ...btnStyle, color: "var(--ink-soft)" }}>
-                        + Add recipe / component
-                      </button>
+            <Field label={multiPart ? `Ingredients — ${activePart?.name || `Part ${activePartIdx + 1}`}` : "Ingredients"}>
+              {multiPart && <PartSelector />}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {activeIngredients.map(ing => {
+                  const canRemove = activeIngredients.length > 1;
+                  return (
+                    <div key={ing.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <input
+                        style={{ ...inputStyle(), width: 64 }} type="text" inputMode="decimal"
+                        value={ing.amount} onChange={e => setIng(ing.id, "amount", e.target.value)} placeholder="1"
+                      />
+                      <select style={{ ...inputStyle(), width: 80, cursor: "pointer" }} value={ing.unit} onChange={e => setIng(ing.id, "unit", e.target.value)}>
+                        {UNITS.filter(u => u.value !== "recipe").map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+                      </select>
+                      <input style={{ ...inputStyle(), flex: 1 }} value={ing.name || ing.recipeName || ""} onChange={e => setIng(ing.id, "name", e.target.value)} placeholder="ingredient" />
+                      <button onClick={() => removeIng(ing.id)} disabled={!canRemove}
+                        style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canRemove ? 1 : 0.3 }}>✕</button>
                     </div>
-
-                  </div>
-                );
-              })()}
+                  );
+                })}
+                <button onClick={addIng} style={{ fontSize: 13, fontWeight: 500, color: "var(--fire)", padding: "4px 0", textAlign: "left" }}>+ Add ingredient</button>
+              </div>
             </Field>
           )}
 
           {/* ── Steps ── */}
           {activeTab === "steps" && (
-            <Field label="Steps">
-              {isMultiComponent && <ComponentSelector />}
+            <Field label={multiPart ? `Steps — ${activePart?.name || `Part ${activePartIdx + 1}`}` : "Steps"}>
+              {multiPart && <PartSelector />}
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {activeSteps.map((step, idx) => (
                   <div key={step.id} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -616,7 +637,7 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
                       <textarea
                         style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.5, flex: 1 }}
                         value={step.text} onChange={e => setStepText(step.id, e.target.value)}
-                        placeholder={`Step ${idx + 1}…`} rows={2}
+                        placeholder={`Step description…`} rows={2}
                       />
                       <button onClick={() => removeStep(step.id)} disabled={activeSteps.length === 1}
                         style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", fontSize: 11, marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", opacity: activeSteps.length === 1 ? 0.3 : 1 }}>✕</button>
@@ -635,7 +656,7 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
                             <textarea
                               style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.5, flex: 1 }}
                               value={sub.text} onChange={e => setSubstepText(step.id, sub.id, e.target.value)}
-                              placeholder={`Step ${idx + 1}${subLetter(subIdx)}…`} rows={1}
+                              placeholder={`Add detail to this step…`} rows={1}
                             />
                             <button onClick={() => removeSubstep(step.id, sub.id)}
                               style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--surface)", fontSize: 10, marginTop: 7, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
@@ -645,11 +666,20 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
                     )}
 
                     <button onClick={() => addSubstep(step.id)} style={{ fontSize: 12.5, color: "var(--ink-faint)", fontWeight: 500, textAlign: "left", marginLeft: 32, padding: "2px 0" }}>
-                      + Add part ({step.substeps.length === 0 ? "a" : subLetter(step.substeps.length)})
+                      + Add detail
                     </button>
                   </div>
                 ))}
-                <button onClick={addStep} style={{ fontSize: 13, color: "var(--fire)", fontWeight: 500, textAlign: "left", padding: "4px 0" }}>+ Add step</button>
+                <button onClick={addStep} style={{ fontSize: 13, color: "var(--fire)", fontWeight: 500, textAlign: "left", padding: "4px 0" }}>+ Add Step</button>
+
+                {!multiPart && (
+                  <button onClick={breakIntoParts} style={{
+                    marginTop: 6, fontSize: 12.5, fontWeight: 500, color: "var(--ink-soft)",
+                    border: "1.5px dashed var(--border)", borderRadius: "var(--r-sm)", padding: "8px",
+                  }}>
+                    ⧉ Break this recipe into parts
+                  </button>
+                )}
               </div>
             </Field>
           )}
@@ -666,7 +696,7 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
                 placeholder={"Tip 1: use room temperature butter\nTip 2: requires 24 hours advance preparation"}
                 rows={8}
               />
-              {form.notes.split("\n").filter(l => l.trim()).length > 0 && (
+              {noteLineCount > 0 && (
                 <div style={{ marginTop: 12 }}>
                   <p style={{ fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--ink-faint)", marginBottom: 8 }}>Preview</p>
                   <ul style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -681,27 +711,57 @@ export function RecipeForm({ initial, onSave, onCancel, recipes = [] }) {
               )}
             </Field>
           )}
+            </div>
+          </div>
         </div>
 
-        {/* Footer */}
-        <div style={{ flexShrink: 0 }}>
-          {!isPrefillMode && (
-            <div style={{ borderBottom: "1px solid var(--border)", padding: "10px 24px", display: "flex", justifyContent: "center", gap: 8, background: "white" }}>
-              {currentTabIdx > 0 && (
-                <button onClick={() => switchTab(FORM_TABS[currentTabIdx - 1])} style={{ padding: "7px 18px", background: "white", color: "var(--ink-soft)", borderRadius: "var(--r-full)", fontSize: 13, fontWeight: 500, border: "1.5px solid var(--border)" }}>← Back</button>
-              )}
-              {currentTabIdx < FORM_TABS.length - 1 && (
-                <button onClick={() => switchTab(FORM_TABS[currentTabIdx + 1])} style={{ padding: "7px 18px", background: "white", color: "var(--ink-soft)", borderRadius: "var(--r-full)", fontSize: 13, fontWeight: 500, border: "1.5px solid var(--border)" }}>Next →</button>
-              )}
-            </div>
-          )}
-          <div style={{ padding: "16px 24px", display: "flex", justifyContent: "center" }}>
-            <button onClick={handleSave} style={{ padding: "11px 40px", background: "var(--fire)", color: "white", borderRadius: "var(--r-full)", fontSize: 14, fontWeight: 600, boxShadow: "var(--shadow-sm)" }}>
-              {isPrefillMode ? "Save to cookbook" : (initial?.id ? "Save changes" : "Add recipe")}
+        {/* Footer — delete (left) · back/next (center) · save (right) */}
+        <div style={{
+          flexShrink: 0, background: MANILA_DARK, borderTop: `1.5px solid ${MANILA_SEAM}`,
+          padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
+        }}>
+          <div style={{ display: "flex", flexShrink: 0 }}>
+            {isExistingRecipe && (
+              <button onClick={() => setShowDeleteConfirm(true)} style={{ fontSize: 13, fontWeight: 600, color: "#9C2A1B", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+                🗑 Delete
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            {currentTabIdx > 0 && (
+              <button onClick={() => setActiveTab(formTabs[currentTabIdx - 1])} title="Back" style={{ padding: "7px 13px", background: PAPER, color: FOLDER_INK, borderRadius: "var(--r-full)", fontSize: 14, fontWeight: 600, border: `1px solid ${MANILA_EDGE}` }}>←</button>
+            )}
+            {currentTabIdx < formTabs.length - 1 && (
+              <button onClick={() => setActiveTab(formTabs[currentTabIdx + 1])} title="Next" style={{ padding: "7px 13px", background: PAPER, color: FOLDER_INK, borderRadius: "var(--r-full)", fontSize: 14, fontWeight: 600, border: `1px solid ${MANILA_EDGE}` }}>→</button>
+            )}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
+            <button onClick={handleSave} style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 16px", background: "rgba(34,197,94,0.14)", color: "#15803D", borderRadius: "var(--r-full)", fontSize: 13.5, fontWeight: 600, border: "1.5px solid rgba(34,197,94,0.4)", whiteSpace: "nowrap" }}>
+              💾 {isExistingRecipe ? "Save Changes" : "Add Recipe"}
             </button>
           </div>
         </div>
       </div>
+
+      {showExitConfirm && (
+        <ConfirmDialog
+          {...exitDialog}
+          onCancel={() => setShowExitConfirm(false)}
+          onConfirm={() => { setShowExitConfirm(false); onCancel(); }}
+        />
+      )}
+
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          icon="🗑" iconBg="#FEE2E2"
+          title="Delete this recipe?" subtitle="This action cannot be undone."
+          cancelLabel="No, Cancel" confirmLabel="Yes, Delete"
+          onCancel={() => setShowDeleteConfirm(false)}
+          onConfirm={handleDelete}
+        />
+      )}
     </div>
   );
 }

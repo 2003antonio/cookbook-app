@@ -2,8 +2,9 @@ import { useState }        from "react";
 import { useAuth }         from "./hooks/useAuth";
 import { useRecipes }      from "./hooks/useRecipes";
 import { useShoppingList } from "./hooks/useShoppingList";
-import { CARD_COLORS }     from "./models/recipe";
-import { RecipeForm }      from "./components/recipe/RecipeForm";
+import { CARD_COLORS, newPart } from "./models/recipe";
+import { RecipeForm }         from "./components/recipe/RecipeForm";
+import { RecipeTypeChooser }  from "./components/recipe/RecipeTypeChooser";
 import { ToastHost }       from "./components/ui/ToastHost";
 import { BottomNav }       from "./components/nav/BottomNav";
 import HomeScreen          from "./screens/HomeScreen";
@@ -19,34 +20,30 @@ export default function App() {
   const { recipes, addRecipe, updateRecipe, deleteRecipe, toggleFavorite } = useRecipes(userId);
   const { items: shoppingItems, addItem, toggleItem, removeItem, clearChecked, addFromRecipe } = useShoppingList(userId);
 
-  const [tab,            setTab]            = useState("home");
-  const [selectedRecipe, setSelectedRecipe] = useState(null);
-  const [formState,      setFormState]      = useState(null);
-  const [recipesFilter,  setRecipesFilter]  = useState("All");
+  const [tab,             setTab]             = useState("home");
+  const [selectedRecipe,  setSelectedRecipe]  = useState(null);
+  const [formState,       setFormState]       = useState(null);
+  const [recipesFilter,   setRecipesFilter]   = useState("All");
+  const [showTypeChooser, setShowTypeChooser] = useState(false);
+
+  // Opens the "Simple vs. Multi-part" chooser; replaces the old direct-to-form flow.
+  const openNewRecipeFlow = () => setShowTypeChooser(true);
+
+  const blankRecipeBase = () => ({
+    name: "", category: "Main Dish", prepTime: "", cookTime: "",
+    baseServings: 4, color: CARD_COLORS[0], rating: 0, tags: [], notes: "",
+  });
+
+  const handleChooseSimple = () => { setShowTypeChooser(false); setFormState("new"); };
+  const handleChooseMultiPart = () => {
+    setShowTypeChooser(false);
+    setFormState({ ...blankRecipeBase(), parts: [newPart(), newPart()] });
+  };
 
   const handleSave = (data) => {
     if (!formState?.id) {
-      // "new" string or a component-prefill object (no id) → create
+      // "new" string or a multi-part starter object (no id) → create
       const created = addRecipe(data);
-      // If saving from "Save as standalone recipe", auto-link parent recipe's
-      // unlinked recipe-link ingredients that share the component's name
-      if (formState?._parentRecipeId && formState?._compName) {
-        const parentRecipe = recipes.find(r => r.id === formState._parentRecipeId);
-        if (parentRecipe) {
-          const updatedComponents = parentRecipe.components.map(c => ({
-            ...c,
-            // Mark the source component as already saved standalone
-            ...(c.name === formState._compName ? { linkedRecipeId: created.id } : {}),
-            // Auto-link any recipe-link ingredients that share the component name
-            ingredients: (c.ingredients || []).map(ing =>
-              ing.type === "recipe" && ing.recipeName === formState._compName && !ing.recipeId
-                ? { ...ing, recipeId: created.id }
-                : ing
-            ),
-          }));
-          updateRecipe(formState._parentRecipeId, { components: updatedComponents });
-        }
-      }
       setSelectedRecipe(created);
       setRecipesFilter("All");
       setTab("recipes");
@@ -56,25 +53,6 @@ export default function App() {
       setSelectedRecipe(updated);
     }
     setFormState(null);
-  };
-
-  // Open the form pre-filled with a component's data as a new recipe
-  const handleCreateFromComponent = (comp, parentRecipeId) => {
-    setFormState({
-      name:         comp.name || "",
-      category:     "Main Dish",
-      prepTime:     "",
-      cookTime:     "",
-      baseServings: 4,
-      color:        CARD_COLORS[0],
-      rating:       0,
-      tags:         [],
-      notes:        "",
-      components:   [{ ...comp, name: "" }],
-      _prefill:         true,
-      _parentRecipeId:  parentRecipeId,
-      _compName:        comp.name || "",
-    });
   };
 
   const handleDelete = (id) => {
@@ -115,7 +93,7 @@ export default function App() {
             recipes={recipes}
             onGoToRecipes={handleGoToRecipes}
             onOpenRecipe={handleOpenRecipe}
-            onNewRecipe={() => setFormState("new")}
+            onNewRecipe={openNewRecipeFlow}
             onToggleFavorite={toggleFavorite}
             onAddToShopping={addFromRecipe}
             session={session}
@@ -133,9 +111,8 @@ export default function App() {
             onDelete={handleDelete}
             onToggleFavorite={toggleFavorite}
             onAddToShopping={addFromRecipe}
-            onNewRecipe={() => setFormState("new")}
+            onNewRecipe={openNewRecipeFlow}
             onNavigateRecipe={id => setSelectedRecipe(recipes.find(r => r.id === id) ?? null)}
-            onCreateFromComponent={handleCreateFromComponent}
             initialFilter={recipesFilter}
             isEditing={isEditingRecipe}
           />
@@ -164,11 +141,20 @@ export default function App() {
         shoppingCount={uncheckedCount}
       />
 
+      {showTypeChooser && (
+        <RecipeTypeChooser
+          onChooseSimple={handleChooseSimple}
+          onChooseMultiPart={handleChooseMultiPart}
+          onCancel={() => setShowTypeChooser(false)}
+        />
+      )}
+
       {formState !== null && (
         <RecipeForm
-          initial={formState === "new" ? null : (formState?.id ? formState : { ...formState, _prefill: true })}
+          initial={formState === "new" ? null : formState}
           onSave={handleSave}
           onCancel={() => setFormState(null)}
+          onDelete={handleDelete}
           recipes={recipes}
         />
       )}

@@ -182,14 +182,13 @@ function IngredientRow({ ing, multiplier, checked, onToggle, onNavigateRecipe })
   );
 }
 
-// ── Ingredient checklist — component-aware ────────────────────────────────────
-// Single component: renders flat (as before).
-// Multi-component: renders each component as a labelled section.
-function IngredientChecklist({ components, multiplier, checkedMap, onToggle, onClearAll, onNavigateRecipe }) {
-  const allIngs    = components.flatMap(c => c.ingredients || []);
+// ── Ingredient checklist — part-aware ─────────────────────────────────────────
+// Single part: renders flat. Multi-part: renders each part as a labelled section.
+function IngredientChecklist({ parts, multiplier, checkedMap, onToggle, onClearAll, onNavigateRecipe }) {
+  const allIngs    = parts.flatMap(p => p.ingredients || []);
   const checkedCount = allIngs.filter(ing => checkedMap[ing.id]).length;
   const totalCount   = allIngs.length;
-  const isSimple     = components.length === 1 && !components[0].name;
+  const isSimple     = parts.length === 1 && !parts[0].name;
 
   const renderRows = (ingredients) => {
     const sorted = [...ingredients].sort((a, b) => {
@@ -235,15 +234,15 @@ function IngredientChecklist({ components, multiplier, checkedMap, onToggle, onC
         </div>
       </div>
 
-      {/* Ingredient rows — flat for simple recipes, sectioned for multi-component */}
+      {/* Ingredient rows — flat for simple recipes, sectioned for multi-part */}
       {isSimple
-        ? renderRows(components[0].ingredients || [])
-        : components.map(comp => {
-            const ings = comp.ingredients || [];
+        ? renderRows(parts[0].ingredients || [])
+        : parts.map((part, idx) => {
+            const ings = part.ingredients || [];
             const allDone = ings.length > 0 && ings.every(i => checkedMap[i.id]);
             return (
-              <div key={comp.id}>
-                <CompHeading name={comp.name} yieldAmt={comp.yieldAmt} yieldUnit={comp.yieldUnit} multiplier={multiplier} done={allDone} />
+              <div key={part.id}>
+                <PartHeading idx={idx} name={part.name} description={part.description} icon={part.icon} done={allDone} />
                 {renderRows(ings)}
               </div>
             );
@@ -264,146 +263,59 @@ function IngredientChecklist({ components, multiplier, checkedMap, onToggle, onC
   );
 }
 
-// ── Shared component section heading ─────────────────────────────────────────
-function CompHeading({ name, yieldAmt, yieldUnit, multiplier = 1, done }) {
-  const scaledYield = (() => {
-    if (!yieldAmt && !yieldUnit) return null;
-    if (!yieldAmt) return yieldUnit;
-    const base = parseFloat(yieldAmt);
-    if (isNaN(base)) return [yieldAmt, yieldUnit].filter(Boolean).join(" ");
-    const scaled = base * multiplier;
-    const display = Number.isInteger(scaled) ? scaled : +scaled.toFixed(2);
-    return [display, yieldUnit].filter(Boolean).join(" ");
-  })();
-
+// ── Shared part section heading ──────────────────────────────────────────────
+function PartHeading({ idx, name, description, icon, done }) {
   return (
     <div style={{
-      display: "flex", alignItems: "center", justifyContent: "space-between",
+      display: "flex", alignItems: "center",
       gap: 10, padding: "8px 12px", borderRadius: "var(--r-sm)",
       background: "rgba(232,98,26,0.07)", border: "1.5px solid rgba(232,98,26,0.2)",
       marginBottom: 8,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{
-          fontSize: 9.5, fontWeight: 700, letterSpacing: "0.07em",
-          textTransform: "uppercase", color: "rgba(232,98,26,0.75)",
-          background: "rgba(232,98,26,0.12)", padding: "2px 6px", borderRadius: 4, flexShrink: 0,
-        }}>recipe</span>
-        <span style={{
-          fontSize: 13.5, fontWeight: 600, color: "var(--ink)", lineHeight: 1.4,
+      <span style={{
+        width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+        background: "rgba(232,98,26,0.14)", color: "var(--fire)",
+        fontSize: 12, fontWeight: 700,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>{icon || (idx + 1)}</span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{
+          fontSize: 13.5, fontWeight: 600, color: "var(--ink)", lineHeight: 1.3,
           textDecoration: done ? "line-through" : "none",
-          opacity: done ? 0.45 : 1,
-          transition: "opacity 0.2s, text-decoration 0.2s",
+          opacity: done ? 0.45 : 1, transition: "opacity 0.2s, text-decoration 0.2s",
         }}>
-          {name || "Main"}
-        </span>
+          {name || `Part ${idx + 1}`}
+        </div>
+        {description && (
+          <div style={{ fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.3 }}>{description}</div>
+        )}
       </div>
-      {scaledYield && (
-        <span style={{ fontSize: 12, fontWeight: 400, color: "var(--ink-faint)", flexShrink: 0 }}>
-          {scaledYield}
-        </span>
-      )}
     </div>
   );
 }
 
-// ── Steps — component-aware ───────────────────────────────────────────────────
-function ComponentSteps({ components, multiplier = 1 }) {
-  const isSimple = components.length === 1 && !components[0].name;
+// ── Steps — part-aware ────────────────────────────────────────────────────────
+function PartSteps({ parts }) {
+  const isSimple = parts.length === 1 && !parts[0].name;
 
   if (isSimple) {
-    return <StepList steps={components[0].steps} />;
+    return <StepList steps={parts[0].steps} />;
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-      {components.map(comp => (
-        <div key={comp.id}>
-          <CompHeading name={comp.name} yieldAmt={comp.yieldAmt} yieldUnit={comp.yieldUnit} multiplier={multiplier} />
-          <StepList steps={comp.steps} />
-          {comp.holding && (
-            <p style={{ marginTop: 10, fontSize: 12.5, color: "var(--ink-soft)", fontStyle: "italic", lineHeight: 1.5 }}>
-              <strong>Holding:</strong> {comp.holding}
-            </p>
-          )}
+      {parts.map((part, idx) => (
+        <div key={part.id}>
+          <PartHeading idx={idx} name={part.name} description={part.description} icon={part.icon} />
+          <StepList steps={part.steps} />
         </div>
       ))}
     </div>
   );
 }
 
-// ── Components tab ────────────────────────────────────────────────────────────
-// Named components shown as linked-recipe cards.
-// Saveable as standalone (＋) or navigatable once saved (↗).
-// If the linked recipe was deleted, falls back to showing the save option.
-// Recipe-link ingredients are already visible in the ingredients tab.
-function ComponentsTab({ components, recipes, onNavigateRecipe, onCreateFromComponent }) {
-  const namedComponents = components.filter(c => c.name);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-
-      {/* Named components as save/link cards */}
-      {namedComponents.map(comp => {
-        // Guard: treat as unlinked if the linked recipe has since been deleted
-        const linkedExists = comp.linkedRecipeId && (recipes || []).some(r => r.id === comp.linkedRecipeId);
-
-        if (linkedExists) {
-          return (
-            <button
-              key={comp.id}
-              onClick={() => onNavigateRecipe && onNavigateRecipe(comp.linkedRecipeId)}
-              style={{
-                width: "100%", textAlign: "left", padding: "14px 16px",
-                background: "var(--fire-dim)", border: "1.5px solid var(--fire)",
-                borderRadius: "var(--r-md)", cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                transition: "background 0.15s, box-shadow 0.15s, transform 0.12s",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = "rgba(232,98,26,0.18)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(232,98,26,0.2)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "var(--fire-dim)"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "translateY(0)"; }}
-            >
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: "var(--fire)", marginBottom: 3 }}>{comp.name}</p>
-                <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Tap to view recipe</p>
-              </div>
-              <span style={{ fontSize: 16, color: "var(--fire)" }}>↗</span>
-            </button>
-          );
-        }
-
-        return (
-          <button
-            key={comp.id}
-            onClick={() => onCreateFromComponent && onCreateFromComponent(comp)}
-            disabled={!onCreateFromComponent}
-            style={{
-              width: "100%", textAlign: "left", padding: "14px 16px",
-              background: "var(--surface)", border: "1.5px solid var(--border)",
-              borderRadius: "var(--r-md)", cursor: onCreateFromComponent ? "pointer" : "default",
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              opacity: 0.7, transition: "opacity 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.12s",
-            }}
-            onMouseEnter={e => { if (!onCreateFromComponent) return; e.currentTarget.style.opacity = "1"; e.currentTarget.style.borderColor = "var(--fire)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(232,98,26,0.15)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = "0.7"; e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "translateY(0)"; }}
-          >
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", marginBottom: 3 }}>{comp.name}</p>
-              <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Not yet saved as a recipe</p>
-            </div>
-            {onCreateFromComponent && (
-              <span style={{ fontSize: 18, color: "var(--fire)", opacity: 0.8 }}>＋</span>
-            )}
-          </button>
-        );
-      })}
-
-    </div>
-  );
-}
-
 // ── RecipeDetail ──────────────────────────────────────────────────────────────
-export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAddToShopping, onNavigateRecipe, onCreateFromComponent, recipes }) {
+export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAddToShopping, onNavigateRecipe, recipes }) {
   const [activeTab,          setActiveTab]          = useState("ingredients");
   const [servings,           setServings]            = useState(null);
   const [confirmDelete,      setConfirmDelete]       = useState(false);
@@ -421,7 +333,7 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
 
   if (!recipe) return null;
 
-  const components      = recipe.components || [];
+  const parts           = recipe.parts || recipe.components || [];
   const currentServings = servings ?? recipe.baseServings ?? 4;
   const multiplier      = currentServings / (recipe.baseServings || 1);
 
@@ -429,17 +341,9 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
   const handleClose          = () => { setServings(null); setConfirmDelete(false); setCheckedIngredients({}); onClose(); };
   const handleAddToShopping  = () => { onAddToShopping(recipe); setAddedToast(true); setTimeout(() => setAddedToast(false), 2000); };
 
-  // Show components tab when there are multiple named components or any recipe-link ingredients
-  // Only show components tab for genuinely named sub-components —
-  // a single component whose name matches the recipe name is not a real sub-component.
-  const showComponentsTab = components.some(
-    c => c.name && !(components.length === 1 && c.name.trim().toLowerCase() === recipe.name.trim().toLowerCase())
-  );
-
   const tabs = [
     "ingredients",
     "steps",
-    ...(showComponentsTab ? ["components"] : []),
     ...(recipe.notes ? ["notes"] : []),
   ];
   const noteLines = recipe.notes
@@ -492,7 +396,7 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
       <div style={{ padding: 20, flex: 1, overflowY: "auto" }}>
         {activeTab === "ingredients" && (
           <IngredientChecklist
-            components={components}
+            parts={parts}
             multiplier={multiplier}
             checkedMap={checkedIngredients}
             onToggle={id => setCheckedIngredients(prev => ({ ...prev, [id]: !prev[id] }))}
@@ -500,15 +404,7 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
             onNavigateRecipe={onNavigateRecipe}
           />
         )}
-        {activeTab === "steps" && <ComponentSteps components={components} multiplier={multiplier} />}
-        {activeTab === "components" && (
-          <ComponentsTab
-            components={components}
-            recipes={recipes}
-            onNavigateRecipe={onNavigateRecipe}
-            onCreateFromComponent={comp => onCreateFromComponent(comp, recipe.id)}
-          />
-        )}
+        {activeTab === "steps" && <PartSteps parts={parts} />}
         {activeTab === "notes" && (
           <ul style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {noteLines.map((line, i) => (

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { RecipeDetail } from "./RecipeDetail";
 
-export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAddToShopping, onNavigateRecipe, onCreateFromComponent, recipes }) {
+export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAddToShopping, onNavigateRecipe, recipes }) {
   const [dragY,       setDragY]       = useState(0);
   const [isDragging,  setIsDragging]  = useState(false);
   const [closing,     setClosing]     = useState(false);
@@ -123,7 +123,6 @@ export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorit
                   onToggleFavorite={onToggleFavorite}
                   onAddToShopping={onAddToShopping}
                   onNavigateRecipe={handleInternalNavigate}
-                  onCreateFromComponent={onCreateFromComponent}
                   recipes={recipes}
                 />
               </div>
@@ -145,7 +144,6 @@ export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorit
                     onToggleFavorite={onToggleFavorite}
                     onAddToShopping={onAddToShopping}
                     onNavigateRecipe={handleInternalNavigate}
-                    onCreateFromComponent={onCreateFromComponent}
                     recipes={recipes}
                   />
                 </div>
