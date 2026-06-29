@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom/client';
 import './style/index.css';
 import App from './App';
 
+// Apply saved theme synchronously before React renders to prevent flash
+const savedTheme = localStorage.getItem('cookbook-theme') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

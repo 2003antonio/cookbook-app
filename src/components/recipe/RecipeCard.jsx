@@ -1,4 +1,3 @@
-//THE ACTUAL LITTLE RECIPE CARD COMPONENT USED IN THE RECIPE SCREEN
 import { StarRating } from "../ui/StarRating";
 import { formatTime } from "../../models/recipe";
 
@@ -7,12 +6,12 @@ export function RecipeCard({ recipe, onSelect, active, onToggleFavorite }) {
     <div
       onClick={() => onSelect(recipe)}
       style={{
-        background: "white", borderRadius: "var(--r-lg)",
+        background: "var(--card-bg)", borderRadius: "var(--r-lg)",
         boxShadow: active
           ? "0 0 0 2.5px var(--fire), var(--shadow-md)"
           : "var(--shadow-card)",
         overflow: "hidden", cursor: "pointer",
-        border: active ? "none" : "1.5px solid transparent",
+        border: active ? "none" : "1.5px solid var(--border)",
         transition: "transform 0.18s, box-shadow 0.18s",
         transform: active ? "translateY(-2px)" : "none",
       }}

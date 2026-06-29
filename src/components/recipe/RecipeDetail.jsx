@@ -30,7 +30,7 @@ function ServingsStepper({ value, onChange, onReset, showReset }) {
       <div style={{
         display: "flex", alignItems: "center",
         border: "1.5px solid var(--border)", borderRadius: 999,
-        overflow: "hidden", background: "white",
+        overflow: "hidden", background: "var(--surface)",
       }}>
         <button
           style={{ width: 32, height: 32, fontSize: 18, color: "var(--fire)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer" }}
@@ -68,12 +68,10 @@ function InfoRow({ recipe, currentServings, onServingsChange, onServingsReset, s
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", borderBottom: "1px solid var(--border)" }}>
-      {cells.map((cell, i, arr) => (
+      {cells.map((cell) => (
         <div key={cell.label} style={{
           display: "flex", flexDirection: "column", alignItems: "center",
           justifyContent: "center", padding: "14px 8px 20px", gap: 3,
-          borderRight: i < arr.length - 1 ? "1px solid var(--border)" : "none",
-          background: cell.label === "Servings" ? "var(--surface)" : "none",
         }}>
           <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-faint)" }}>
             {cell.label}
@@ -117,7 +115,7 @@ function IngredientRow({ ing, multiplier, checked, onToggle, onNavigateRecipe })
         <div style={{
           width: 20, height: 20, borderRadius: 6, flexShrink: 0,
           border: checked ? "none" : "2px solid var(--border)",
-          background: checked ? "var(--fire)" : "white",
+          background: checked ? "var(--fire)" : "transparent",
           display: "flex", alignItems: "center", justifyContent: "center",
           transition: "all 0.15s ease",
           boxShadow: checked ? "0 1px 4px rgba(232,98,26,0.3)" : "none",
@@ -158,7 +156,7 @@ function IngredientRow({ ing, multiplier, checked, onToggle, onNavigateRecipe })
       <div style={{
         width: 20, height: 20, borderRadius: 6, flexShrink: 0,
         border: checked ? "none" : "2px solid var(--border)",
-        background: checked ? "var(--fire)" : "white",
+        background: checked ? "var(--fire)" : "transparent",
         display: "flex", alignItems: "center", justifyContent: "center",
         transition: "all 0.15s ease",
         boxShadow: checked ? "0 1px 4px rgba(232,98,26,0.3)" : "none",
@@ -269,12 +267,12 @@ function PartHeading({ idx, name, description, icon, done }) {
     <div style={{
       display: "flex", alignItems: "center",
       gap: 10, padding: "8px 12px", borderRadius: "var(--r-sm)",
-      background: "rgba(232,98,26,0.07)", border: "1.5px solid rgba(232,98,26,0.2)",
+      background: "var(--surface)",
       marginBottom: 8,
     }}>
       <span style={{
         width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
-        background: "rgba(232,98,26,0.14)", color: "var(--fire)",
+        background: "var(--fire-dim)", color: "var(--fire)",
         fontSize: 12, fontWeight: 700,
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>{icon || (idx + 1)}</span>
@@ -445,15 +443,13 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
           <button
             onClick={() => setConfirmDelete(true)}
             style={{
-              padding: "5px", fontSize: 13.5, fontWeight: 500,
-              color: "#ef4444", background: "#fef2f2",
-              border: "1px solid #fee2e2", borderRadius: "var(--r-md)",
-              cursor: "pointer", transition: "all 0.15s ease",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              alignSelf: "center", padding: "5px 8px", fontSize: 13, fontWeight: 500,
+              color: "var(--ink-faint)", background: "none", border: "none",
+              cursor: "pointer", transition: "color 0.15s ease",
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#fee2e2"; e.currentTarget.style.borderColor = "#fca5a5"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#fef2f2"; e.currentTarget.style.borderColor = "#fee2e2"; }}
-          >🗑 Delete recipe</button>
+            onMouseEnter={e => { e.currentTarget.style.color = "#C0392B"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "var(--ink-faint)"; }}
+          >Delete recipe</button>
         )}
       </div>
     </div>

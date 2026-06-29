@@ -2,12 +2,12 @@
 // Shown when the user taps "New Recipe", before the full RecipeForm opens.
 // Lets them pick a simple single-part recipe vs. a multi-part one, which
 // determines how many components RecipeForm starts with.
-export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel }) {
+export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel, isExiting = false }) {
   let _mouseDownOnBackdrop = false;
 
   const cardStyle = {
-    flex: 1, background: "white", border: "1.5px solid var(--border)",
-    borderRadius: "var(--r-lg)", padding: "20px 18px", display: "flex",
+    flex: 1, background: "var(--surface)", border: "2.5px solid var(--fire)",
+    borderRadius: "var(--r-lg)", padding: "20px 10px", display: "flex",
     flexDirection: "column", gap: 10, minWidth: 0,
   };
 
@@ -17,7 +17,7 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel 
   });
 
   const previewCardStyle = {
-    background: "var(--surface)", border: "1px solid var(--border)",
+    background: "var(--surface)", border: "1.5px solid var(--fire)",
     borderRadius: "var(--r-sm)", padding: "10px 11px",
   };
 
@@ -68,7 +68,7 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel 
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {parts.map((p, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, background: "white", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 7px" }}>
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 7px" }}>
               <span style={{
                 width: 14, height: 14, borderRadius: "50%", background: p.bg, color: "var(--ink)",
                 fontSize: 8, fontWeight: 700, flexShrink: 0,
@@ -84,10 +84,10 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel 
   };
 
   return (
+    // Transparent click-catcher — backdrop is rendered by App.js
     <div
       style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-        backdropFilter: "blur(3px)", zIndex: 200,
+        position: "fixed", inset: 0, zIndex: 200,
         display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
       }}
       onMouseDown={e => { _mouseDownOnBackdrop = e.target === e.currentTarget; }}
@@ -95,10 +95,11 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel 
     >
       <div
         onClick={e => e.stopPropagation()}
+        className={isExiting ? "modal-exiting" : undefined}
         style={{
-          background: "var(--paper)", borderRadius: "var(--r-lg)", width: "100%",
+          background: "var(--card-bg)", borderRadius: "var(--r-lg)", width: "100%",
           maxWidth: 560, maxHeight: "90vh", overflowY: "auto",
-          boxShadow: "var(--shadow-lg)", padding: "28px 28px 24px",
+          boxShadow: "0 0 0 1px var(--border), var(--shadow-lg)", padding: "28px 28px 24px",
           display: "flex", flexDirection: "column", gap: 22,
         }}
       >
@@ -108,14 +109,17 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel 
             onClick={onCancel}
             style={{
               position: "absolute", top: -4, right: -4, width: 30, height: 30, borderRadius: "50%",
-              background: "var(--surface)", fontSize: 13, display: "flex",
-              alignItems: "center", justifyContent: "center",
+              background: "var(--surface)", color: "var(--ink-soft)", fontSize: 13, display: "flex",
+              alignItems: "center", justifyContent: "center", transition: "background 0.15s",
             }}
+            onMouseEnter={e => e.currentTarget.style.background = "var(--surface-2)"}
+            onMouseLeave={e => e.currentTarget.style.background = "var(--surface)"}
           >✕</button>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: 21, fontWeight: 600 }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: 21, fontWeight: 600, color: "var(--ink)", padding: "0 30px" }}>
             Let's make a new recipe!
           </h2>
-          <p style={{ fontSize: 13.5, color: "var(--ink-soft)", marginTop: 4 }}>
+          <div style={{ width: 44, height: 3, background: "var(--fire)", borderRadius: 999, margin: "9px auto 0" }} />
+          <p style={{ fontSize: 13.5, color: "var(--ink-faint)", marginTop: 8 }}>
             Choose how you'd like to start.
           </p>
         </div>
@@ -137,7 +141,10 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel 
               style={{
                 marginTop: "auto", padding: "9px 12px", background: "var(--fire-dim)",
                 color: "var(--fire)", borderRadius: "var(--r-full)", fontSize: 13, fontWeight: 600,
+                transition: "background 0.15s, color 0.15s, transform 0.15s",
               }}
+              onMouseEnter={e => { e.currentTarget.style.background = "var(--fire)"; e.currentTarget.style.color = "white"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "var(--fire-dim)"; e.currentTarget.style.color = "var(--fire)"; e.currentTarget.style.transform = "translateY(0)"; }}
             >
               Create Simple Recipe →
             </button>
@@ -158,7 +165,10 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel 
               style={{
                 marginTop: "auto", padding: "9px 12px", background: "#f59e0b",
                 color: "white", borderRadius: "var(--r-full)", fontSize: 13, fontWeight: 600,
+                transition: "background 0.15s, transform 0.15s",
               }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#d97706"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "#f59e0b"; e.currentTarget.style.transform = "translateY(0)"; }}
             >
               Create Multi-part Recipe →
             </button>
@@ -169,9 +179,9 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel 
         <div
           title="Coming soon"
           style={{
-            border: "1.5px dashed var(--border)", borderRadius: "var(--r-md)",
+            border: "1.5px dashed var(--fire)", borderRadius: "var(--r-md)",
             padding: "14px 16px", textAlign: "center", color: "var(--ink-faint)",
-            fontSize: 13, opacity: 0.6, cursor: "not-allowed",
+            fontSize: 13, cursor: "not-allowed",
           }}
         >
           ⬆ Or upload a recipe file

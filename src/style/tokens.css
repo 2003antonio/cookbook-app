@@ -14,6 +14,10 @@
   --fire-glow:  rgba(232,98,26,0.08);
   --night:      #18181B;
 
+  /* Surface tokens (card/sheet/nav backgrounds) */
+  --card-bg:    #FFFFFF;
+  --nav-bg:     #FFFFFF;
+
   /* Type */
   --font-display: 'Fraunces', Georgia, serif;
   --font-body:    'DM Sans', system-ui, sans-serif;
@@ -41,6 +45,25 @@
   --nav-h: 68px;
 }
 
+/* ── Dark mode overrides ─────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --ink:        #EDEDEC;
+  --ink-soft:   #A1A1AA;
+  --ink-faint:  #52525B;
+  --paper:      #111113;   /* page bg */
+  --surface:    #252529;   /* inputs, pills — sits on top of card-bg */
+  --surface-2:  #2E2E33;   /* hover, most-elevated */
+  --border:     #3A3A3E;
+  --fire-dim:   rgba(232,98,26,0.18);
+  --fire-glow:  rgba(232,98,26,0.12);
+  --card-bg:    #1C1C1F;   /* sheets, modals, cards */
+  --nav-bg:     #18181B;   /* bottom nav — deepest */
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.4),  0 1px 2px rgba(0,0,0,0.25);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3);
+  --shadow-lg:  0 12px 40px rgba(0,0,0,0.6),0 4px 12px rgba(0,0,0,0.35);
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.45),0 0 1px rgba(0,0,0,0.35);
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { height: 100%; }
@@ -63,3 +86,29 @@ img { display: block; max-width: 100%; }
 
 /* ── Scrollbars ── */
 ::-webkit-scrollbar { width: 0; height: 0; }
+
+/* ── Tab switch ── */
+/* The newly-selected tab panel sweeps in from the direction of travel and
+   scales up to "take over" the form body. Direction is set per-switch by the
+   --next / --prev modifier. */
+.tab-panel {
+  animation-duration: 0.3s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+  will-change: transform, opacity;
+}
+.tab-panel--next { animation-name: tabTakeoverNext; }
+.tab-panel--prev { animation-name: tabTakeoverPrev; }
+
+@keyframes tabTakeoverNext {
+  from { opacity: 0; transform: translate3d(28px, 0, 0) scale(0.985); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0)  scale(1); }
+}
+@keyframes tabTakeoverPrev {
+  from { opacity: 0; transform: translate3d(-28px, 0, 0) scale(0.985); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0)   scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-panel { animation: none; }
+}

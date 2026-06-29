@@ -19,7 +19,8 @@ export function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         minWidth: CARD_W, width: CARD_W,
-        background: "white", borderRadius: "var(--r-lg)",
+        background: "var(--card-bg)", borderRadius: "var(--r-lg)",
+        border: "1px solid var(--border)",
         cursor: "pointer", overflow: "hidden",
         boxShadow: active ? "var(--shadow-lg)" : "var(--shadow-sm)",
         transform: `scale(${scale}) translateY(${lift}px)`,

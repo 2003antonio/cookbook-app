@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { StarRating }    from "../ui/StarRating";
 import { Field }         from "../ui/Field";
 import { showToast }     from "../ui/ToastHost";
@@ -7,22 +7,6 @@ import {
   UNITS, CATEGORY_OPTIONS, CARD_COLORS, PART_ICONS,
   newIngredient, newStep, newSubstep, subLetter, normalizeRecipe, newPart,
 } from "../../models/recipe";
-
-// ── Folder theme ────────────────────────────────────────────────────────────
-// Manila card-stock palette — the whole modal is one tan file folder.
-const MANILA       = "#E7D7A4";   // folder body / front flap
-const MANILA_LIGHT = "#F1E4BD";   // edge catching the light / hover
-const MANILA_DARK  = "#D6C384";   // tabs sitting behind the front (recessed)
-const MANILA_EDGE  = "#BFAB6E";   // card-stock cut edges / borders
-const MANILA_SEAM  = "#AC9759";   // fold + seam shadow lines
-const PAPER        = "#FCFAF3";   // the sheet of paper inside the folder
-const FOLDER_INK   = "#5F4F2A";   // stamped-label brown
-
-// Soft tints for the numbered part badges (cycled by index).
-const PART_TINTS = [
-  "rgba(139,92,246,0.20)", "rgba(232,98,26,0.18)", "rgba(34,197,94,0.18)",
-  "rgba(59,130,246,0.18)", "rgba(236,72,153,0.18)", "rgba(245,158,11,0.20)",
-];
 
 // ── Amount parser (supports fractions and decimals) ───────────────────────────
 function parseAmount(val) {
@@ -44,8 +28,30 @@ function blankForm() {
   };
 }
 
+// ── Auto-growing textarea ─────────────────────────────────────────────────────
+// Grows with its content from `minRows` up to `maxLines`, then scrolls internally
+// so the user never has to scroll inside a small box while typing.
+function AutoTextarea({ value, minRows = 1, maxLines = 8, style, ...rest }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const cs       = window.getComputedStyle(el);
+    const lh       = parseFloat(cs.lineHeight) || 20;
+    const padV     = parseFloat(cs.paddingTop)   + parseFloat(cs.paddingBottom);
+    const borderV  = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+    const minH     = lh * minRows  + padV + borderV;
+    const maxH     = lh * maxLines + padV + borderV;
+    const next     = Math.min(Math.max(el.scrollHeight + borderV, minH), maxH);
+    el.style.height    = `${next}px`;
+    el.style.overflowY = el.scrollHeight + borderV > maxH ? "auto" : "hidden";
+  }, [value, minRows, maxLines]);
+  return <textarea ref={ref} value={value} style={{ ...style, resize: "none" }} {...rest} />;
+}
+
 // ── RecipeForm ────────────────────────────────────────────────────────────────
-export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }) {
+export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], isEntering = false }) {
   let _mouseDownOnBackdrop = false;
 
   const [form, setForm] = useState(() => {
@@ -78,6 +84,13 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
   const scrollToBottom = () => requestAnimationFrame(() => requestAnimationFrame(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }));
+
+  // Lock the page behind the modal so it can't scroll while the form is open.
+  useEffect(() => {
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = original; };
+  }, []);
 
   // ── Modes & active part ──────────────────────────────────────────────────────
   const multiPart  = form.parts.length > 1;
@@ -223,9 +236,9 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
   // ── Styles ───────────────────────────────────────────────────────────────────
   const inputStyle = (err) => ({
     padding: "9px 12px",
-    border: `1.5px solid ${err ? "#ef4444" : "var(--border)"}`,
+    border: `1px solid ${err ? "#ef4444" : "var(--border)"}`,
     borderRadius: "var(--r-sm)", fontSize: 14, color: "var(--ink)",
-    background: "white", outline: "none", width: "100%", transition: "border-color 0.15s",
+    background: "var(--surface)", outline: "none", width: "100%", transition: "border-color 0.15s",
   });
 
   // ── Tab counts / labels ──────────────────────────────────────────────────────
@@ -244,7 +257,19 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
   };
 
   const currentTabIdx = formTabs.indexOf(activeTab);
-  const titleText = `${isExistingRecipe ? "Edit" : "New"}${multiPart ? " Multi-part" : ""} Recipe`;
+  const titleText = `${isExistingRecipe ? "Edit" : "New"}${multiPart ? " Multi-Part" : ""} Recipe`;
+
+  // Tab-switch animation direction: +1 when moving to a later tab, −1 to an earlier one.
+  // hasTabSwitched starts false so the initial render has no slide animation.
+  // Both refs are updated during render (not in an effect) so the class is ready
+  // on the same render that the tab change happens.
+  const prevTabIdxRef  = useRef(currentTabIdx);
+  const hasTabSwitched = useRef(false);
+  const slideDir = currentTabIdx >= prevTabIdxRef.current ? 1 : -1;
+  if (prevTabIdxRef.current !== currentTabIdx) {
+    hasTabSwitched.current  = true;
+    prevTabIdxRef.current   = currentTabIdx;
+  }
 
   // ── Part selector pill row (Ingredients / Steps tabs, multi-part only) ────────
   const PartSelector = () => (
@@ -258,7 +283,7 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
             display: "flex", alignItems: "center", gap: 5,
             background: activePartIdx === idx ? "var(--fire)" : "var(--surface)",
             color:      activePartIdx === idx ? "white"        : "var(--ink-soft)",
-            border:     activePartIdx === idx ? "none"         : "1.5px solid var(--border)",
+            border:     "none",
           }}
         >
           {part.icon && <span>{part.icon}</span>}
@@ -268,11 +293,18 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
     </div>
   );
 
+  // ── Footer nav / action buttons ──────────────────────────────────────────────
+  const navBtnStyle = {
+    width: 34, height: 34, borderRadius: "50%",
+    background: "var(--surface)", color: "var(--ink-soft)",
+    fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
+  };
+
   return (
+    // Transparent click-catcher — backdrop is rendered by App.js
     <div
       style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-        backdropFilter: "blur(3px)", zIndex: 200,
+        position: "fixed", inset: 0, zIndex: 200,
         display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
       }}
       onMouseDown={e => { _mouseDownOnBackdrop = e.target === e.currentTarget; }}
@@ -280,73 +312,66 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
     >
       <div
         onClick={e => e.stopPropagation()}
+        className={isEntering ? "modal-entering" : undefined}
         style={{
-          width: "100%", maxWidth: 560, maxHeight: "90vh",
+          width: "100%", maxWidth: 560, minHeight: "min(600px, 90vh)", maxHeight: "90vh",
           display: "flex", flexDirection: "column",
-          borderRadius: "12px", overflow: "hidden",
-          background: MANILA,
-          backgroundImage: `linear-gradient(180deg, ${MANILA_LIGHT} 0%, ${MANILA} 16%, ${MANILA} 90%, ${MANILA_DARK} 100%)`,
-          border: `1px solid ${MANILA_EDGE}`,
-          boxShadow: "0 24px 60px rgba(60,45,15,0.45), 0 4px 14px rgba(0,0,0,0.22)",
+          borderRadius: "var(--r-md)", overflow: "hidden",
+          background: "var(--card-bg)",
+          boxShadow: "0 0 0 1px var(--border), var(--shadow-lg)",
         }}
       >
-        {/* Folder index tabs — sticking up along the top edge */}
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, padding: "10px 10px 0", overflowX: "auto", flexShrink: 0 }}>
-          {formTabs.map(tab => {
+        {/* Header — dark title bar */}
+        <div style={{ display: "flex", background: "var(--night)", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", flexShrink: 0, gap: 8 }}>
+          <span style={{
+            fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 17, color: "white",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>{titleText}</span>
+          <button
+            onClick={attemptCancel}
+            style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.14)", color: "white", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.26)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.14)"}
+          >✕</button>
+        </div>
+
+        {/* Tabs — equal width, underline indicator (continues the dark bar) */}
+        <div style={{ display: "flex", background: "var(--night)", padding: "0 12px", flexShrink: 0 }}>
+          {formTabs.map((tab, i) => {
             const active   = activeTab === tab;
             const tabError = tab === "details" && errors.name;
+            const notLast  = i < formTabs.length - 1;
             return (
               <button key={tab} onClick={() => setActiveTab(tab)} style={{
-                flexShrink: 0, whiteSpace: "nowrap",
-                padding: active ? "8px 14px 12px" : "6px 14px 9px",
-                borderRadius: "9px 9px 0 0",
-                border: `1px solid ${MANILA_EDGE}`, borderBottom: "none",
-                marginBottom: active ? -1.5 : 3,
-                background: active ? MANILA : MANILA_DARK,
-                color: tabError ? "#C0392B" : FOLDER_INK,
-                fontFamily: "var(--font-display)",
-                fontSize: 12.5, fontWeight: active ? 700 : 500,
-                opacity: active ? 1 : 0.92,
-                boxShadow: active
-                  ? "0 -2px 4px rgba(90,70,25,0.10)"
-                  : "inset 0 -4px 6px -2px rgba(120,98,45,0.30)",
-                zIndex: active ? 3 : 1, transition: "all 0.15s",
+                flex: 1, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                padding: "12px 4px",
+                fontSize: 12.5, fontWeight: active ? 600 : 500,
+                color: tabError ? "#F87171" : active ? "var(--fire)" : "rgba(255,255,255,0.55)",
+                borderBottom: active ? "2px solid var(--fire)" : "2px solid transparent",
+                borderRight: notLast ? "1px solid rgba(232,98,26,0.35)" : "none",
+                transition: "color 0.15s",
               }}>
-                {tabLabel(tab)}{tabError ? " ⚠" : ""}
+                {tabLabel(tab)}
               </button>
             );
           })}
         </div>
 
-        {/* Folder interior */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, borderTop: `1.5px solid ${MANILA_SEAM}` }}>
-          {/* Stamped label + paperclip + close */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px 8px", flexShrink: 0, gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
-              <span style={{ fontSize: 15, flexShrink: 0 }}>🗂️</span>
-              <span style={{
-                fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15, color: FOLDER_INK,
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>{titleText}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <span style={{ fontSize: 16, transform: "rotate(20deg)", display: "inline-block" }}>📎</span>
-              <button onClick={attemptCancel} style={{ width: 26, height: 26, borderRadius: "50%", background: MANILA_LIGHT, border: `1px solid ${MANILA_EDGE}`, color: FOLDER_INK, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-            </div>
-          </div>
-
-          {/* Sheet of paper tucked inside the folder */}
-          <div style={{ flex: 1, display: "flex", minHeight: 0, padding: "0 12px 12px" }}>
-            <div ref={bodyRef} style={{
-              flex: 1, overflowY: "auto", background: PAPER,
-              borderRadius: "4px", border: `1px solid ${MANILA_EDGE}`,
-              boxShadow: "0 1px 5px rgba(80,60,20,0.18)",
-              padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14,
-            }}>
+        {/* Body */}
+        <div ref={bodyRef} style={{
+          flex: 1, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", minHeight: 0, background: "var(--card-bg)",
+          padding: "20px", display: "flex", flexDirection: "column",
+        }}>
+          {/* Animated tab panel — keyed by activeTab so the sweep-in replays on every switch */}
+          <div
+            key={activeTab}
+            className={hasTabSwitched.current ? `tab-panel tab-panel--${slideDir >= 0 ? "next" : "prev"}` : undefined}
+            style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14 }}
+          >
 
           {/* ── Details ── */}
           {activeTab === "details" && (
-            <>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14, justifyContent: "space-between" }}>
               <Field label="Recipe name *">
                 <input
                   style={inputStyle(errors.name)} value={form.name}
@@ -371,7 +396,7 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
                   {categoryOpen && (
                     <div style={{
                       position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 50,
-                      background: "white", border: "1.5px solid var(--border)", borderRadius: "var(--r-sm)",
+                      background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-sm)",
                       boxShadow: "var(--shadow-lg)", padding: 8,
                       display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4,
                       maxHeight: 280, overflowY: "auto", overscrollBehavior: "contain",
@@ -422,7 +447,7 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
                       <button key={c} onClick={() => set("color", c)} style={{
                         width: 24, height: 24, borderRadius: "50%", background: c, flexShrink: 0,
                         border: form.color === c ? "2px solid var(--ink)" : "2px solid transparent",
-                        boxShadow: form.color === c ? "0 0 0 2px white inset" : "none",
+                        boxShadow: form.color === c ? "0 0 0 2px var(--card-bg) inset" : "none",
                         transition: "transform 0.12s", cursor: "pointer",
                       }}
                         onMouseEnter={e => e.target.style.transform = "scale(1.15)"}
@@ -457,7 +482,7 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
                     onKeyDown={e => e.key === "Enter" && addTag()}
                     placeholder="e.g. Italian, Quick…"
                   />
-                  <button onClick={addTag} style={{ padding: "9px 16px", background: "var(--surface)", border: "1.5px solid var(--border)", borderRadius: "var(--r-sm)", fontSize: 13.5, fontWeight: 500, whiteSpace: "nowrap" }}>Add</button>
+                  <button onClick={addTag} style={{ padding: "9px 16px", background: "var(--surface)", borderRadius: "var(--r-sm)", fontSize: 13.5, fontWeight: 500, color: "var(--ink-soft)", whiteSpace: "nowrap" }}>Add</button>
                 </div>
                 {form.tags.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
@@ -470,40 +495,39 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
                   </div>
                 )}
               </Field>
-            </>
+            </div>
           )}
 
           {/* ── Parts (multi-part only) ── */}
           {activeTab === "parts" && (
-            <Field label="Parts">
+            <Field label="Parts" style={{ flex: 1 }}>
               {!bannerDismissed && (
                 <div style={{
-                  display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12,
-                  padding: "10px 12px", background: "rgba(172,151,89,0.12)",
-                  border: `1px solid ${MANILA_EDGE}`, borderRadius: "var(--r-sm)",
+                  display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 6,
+                  padding: "8px 12px", background: "var(--surface)",
+                  borderRadius: "var(--r-sm)",
                 }}>
                   <span style={{ fontSize: 14, flexShrink: 0 }}>🗒️</span>
-                  <p style={{ fontSize: 12.5, color: "var(--ink-soft)", lineHeight: 1.5, flex: 1 }}>
-                    A multi-part recipe is made up of sections or stages — a sauce, a filling, the assembly.
-                    Add, reorder, and edit each part below.
+                  <p style={{ fontSize: 12.5, color: "var(--ink-soft)", lineHeight: 1.45, flex: 1 }}>
+                    Build your dish in stages — a sauce, a filling, the assembly.
                   </p>
                   <button onClick={() => setBannerDismissed(true)} style={{ fontSize: 12, color: "var(--ink-faint)", flexShrink: 0 }}>✕</button>
                 </div>
               )}
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
                 {form.parts.map((part, idx) => {
                   const ingN  = countIngs(part.ingredients);
                   const stepN = countSteps(part.steps);
                   return (
                     <div key={part.id} style={{
-                      border: `1px solid ${MANILA_EDGE}`, borderRadius: "var(--r-md)",
-                      padding: "10px 12px", background: "rgba(172,151,89,0.07)",
+                      border: "1px solid var(--border)", borderRadius: "var(--r-md)",
+                      padding: "9px 12px", background: "var(--surface)",
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{
                           width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
-                          background: PART_TINTS[idx % PART_TINTS.length], color: "var(--ink)",
+                          background: "var(--fire-dim)", color: "var(--fire)",
                           fontSize: 12.5, fontWeight: 700,
                           display: "flex", alignItems: "center", justifyContent: "center",
                         }}>{idx + 1}</span>
@@ -522,14 +546,14 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
                             title="Pick an icon"
                             style={{
                               width: 36, height: 36, borderRadius: "var(--r-sm)", fontSize: 17,
-                              border: "1.5px solid var(--border)", background: "var(--surface)",
+                              border: "1px solid var(--border)", background: "var(--surface)",
                               display: "flex", alignItems: "center", justifyContent: "center",
                             }}
                           >{part.icon || "＋"}</button>
                           {iconPickerFor === part.id && (
                             <div ref={iconPickerRef} style={{
                               position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 60,
-                              background: "white", border: "1.5px solid var(--border)", borderRadius: "var(--r-sm)",
+                              background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r-sm)",
                               boxShadow: "var(--shadow-lg)", padding: 8,
                               display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 4, width: 232,
                             }}>
@@ -558,7 +582,7 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
                         </div>
 
                         <button onClick={() => removePart(part.id)}
-                          style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                          style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", color: "var(--ink-soft)", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                       </div>
 
                       <input
@@ -585,9 +609,10 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
                 <button
                   onClick={addPart}
                   style={{
-                    border: "1.5px dashed var(--border)", borderRadius: "var(--r-md)",
+                    border: "1px dashed var(--border)", borderRadius: "var(--r-md)",
                     padding: "12px", fontSize: 13, fontWeight: 600, color: "var(--ink-soft)",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    marginTop: "auto",
                   }}
                 >＋ Add New Part</button>
               </div>
@@ -596,9 +621,9 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
 
           {/* ── Ingredients ── */}
           {activeTab === "ingredients" && (
-            <Field label={multiPart ? `Ingredients — ${activePart?.name || `Part ${activePartIdx + 1}`}` : "Ingredients"}>
+            <Field label={multiPart ? `Ingredients — ${activePart?.name || `Part ${activePartIdx + 1}`}` : "Ingredients"} style={{ flex: 1 }}>
               {multiPart && <PartSelector />}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
                 {activeIngredients.map(ing => {
                   const canRemove = activeIngredients.length > 1;
                   return (
@@ -612,20 +637,20 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
                       </select>
                       <input style={{ ...inputStyle(), flex: 1 }} value={ing.name || ing.recipeName || ""} onChange={e => setIng(ing.id, "name", e.target.value)} placeholder="ingredient" />
                       <button onClick={() => removeIng(ing.id)} disabled={!canRemove}
-                        style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canRemove ? 1 : 0.3 }}>✕</button>
+                        style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", color: "var(--ink-soft)", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canRemove ? 1 : 0.3 }}>✕</button>
                     </div>
                   );
                 })}
-                <button onClick={addIng} style={{ fontSize: 13, fontWeight: 500, color: "var(--fire)", padding: "4px 0", textAlign: "left" }}>+ Add ingredient</button>
+                <button onClick={addIng} style={{ fontSize: 13, fontWeight: 500, color: "var(--fire)", padding: "4px 0", textAlign: "left", marginTop: "auto" }}>+ Add ingredient</button>
               </div>
             </Field>
           )}
 
           {/* ── Steps ── */}
           {activeTab === "steps" && (
-            <Field label={multiPart ? `Steps — ${activePart?.name || `Part ${activePartIdx + 1}`}` : "Steps"}>
+            <Field label={multiPart ? `Steps — ${activePart?.name || `Part ${activePartIdx + 1}`}` : "Steps"} style={{ flex: 1 }}>
               {multiPart && <PartSelector />}
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
                 {activeSteps.map((step, idx) => (
                   <div key={step.id} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
@@ -634,13 +659,13 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
                         color: "var(--fire)", fontSize: 12, fontWeight: 700, marginTop: 8, flexShrink: 0,
                         display: "flex", alignItems: "center", justifyContent: "center",
                       }}>{idx + 1}</span>
-                      <textarea
-                        style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.5, flex: 1 }}
+                      <AutoTextarea
+                        style={{ ...inputStyle(), lineHeight: 1.5, flex: 1 }}
                         value={step.text} onChange={e => setStepText(step.id, e.target.value)}
-                        placeholder={`Step description…`} rows={2}
+                        placeholder={`Step description…`} minRows={2} maxLines={8}
                       />
                       <button onClick={() => removeStep(step.id)} disabled={activeSteps.length === 1}
-                        style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", fontSize: 11, marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", opacity: activeSteps.length === 1 ? 0.3 : 1 }}>✕</button>
+                        style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", color: "var(--ink-soft)", fontSize: 11, marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", opacity: activeSteps.length === 1 ? 0.3 : 1 }}>✕</button>
                     </div>
 
                     {step.substeps.length > 0 && (
@@ -648,18 +673,18 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
                         {step.substeps.map((sub, subIdx) => (
                           <div key={sub.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                             <span style={{
-                              width: 22, height: 22, borderRadius: "50%", background: "white",
+                              width: 22, height: 22, borderRadius: "50%", background: "var(--surface)",
                               border: "1.5px solid var(--fire-dim)", color: "var(--fire)",
                               fontSize: 11, fontWeight: 700, marginTop: 7, flexShrink: 0,
                               display: "flex", alignItems: "center", justifyContent: "center",
                             }}>{subLetter(subIdx)}</span>
-                            <textarea
-                              style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.5, flex: 1 }}
+                            <AutoTextarea
+                              style={{ ...inputStyle(), lineHeight: 1.5, flex: 1 }}
                               value={sub.text} onChange={e => setSubstepText(step.id, sub.id, e.target.value)}
-                              placeholder={`Add detail to this step…`} rows={1}
+                              placeholder={`Add detail to this step…`} minRows={1} maxLines={8}
                             />
                             <button onClick={() => removeSubstep(step.id, sub.id)}
-                              style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--surface)", fontSize: 10, marginTop: 7, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                              style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--surface)", color: "var(--ink-soft)", fontSize: 10, marginTop: 7, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                           </div>
                         ))}
                       </div>
@@ -670,12 +695,12 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
                     </button>
                   </div>
                 ))}
-                <button onClick={addStep} style={{ fontSize: 13, color: "var(--fire)", fontWeight: 500, textAlign: "left", padding: "4px 0" }}>+ Add Step</button>
+                <button onClick={addStep} style={{ fontSize: 13, color: "var(--fire)", fontWeight: 500, textAlign: "left", padding: "4px 0", marginTop: "auto" }}>+ Add Step</button>
 
                 {!multiPart && (
                   <button onClick={breakIntoParts} style={{
                     marginTop: 6, fontSize: 12.5, fontWeight: 500, color: "var(--ink-soft)",
-                    border: "1.5px dashed var(--border)", borderRadius: "var(--r-sm)", padding: "8px",
+                    border: "1px dashed var(--border)", borderRadius: "var(--r-sm)", padding: "8px",
                   }}>
                     ⧉ Break this recipe into parts
                   </button>
@@ -686,12 +711,12 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
 
           {/* ── Notes ── */}
           {activeTab === "notes" && (
-            <Field label="Notes & tips">
+            <Field label="Notes & tips" style={{ flex: 1 }}>
               <p style={{ fontSize: 12, color: "var(--ink-faint)", marginBottom: 4 }}>
                 Master recipe notes. Each line will appear as a separate note.
               </p>
               <textarea
-                style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.7, minHeight: 180 }}
+                style={{ ...inputStyle(), resize: "vertical", lineHeight: 1.7, flex: 1, minHeight: 120 }}
                 value={form.notes} onChange={e => set("notes", e.target.value)}
                 placeholder={"Tip 1: use room temperature butter\nTip 2: requires 24 hours advance preparation"}
                 rows={8}
@@ -711,35 +736,36 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [] }
               )}
             </Field>
           )}
-            </div>
           </div>
         </div>
 
         {/* Footer — delete (left) · back/next (center) · save (right) */}
         <div style={{
-          flexShrink: 0, background: MANILA_DARK, borderTop: `1.5px solid ${MANILA_SEAM}`,
-          padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
+          flexShrink: 0, background: "var(--card-bg)", borderTop: "1px solid var(--border)",
+          padding: "12px 16px", display: "flex", alignItems: "center", gap: 6,
         }}>
-          <div style={{ display: "flex", flexShrink: 0 }}>
+          <div style={{ flex: 1, display: "flex", justifyContent: "flex-start" }}>
             {isExistingRecipe && (
-              <button onClick={() => setShowDeleteConfirm(true)} style={{ fontSize: 13, fontWeight: 600, color: "#9C2A1B", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
-                🗑 Delete
+              <button onClick={() => setShowDeleteConfirm(true)} style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-faint)", whiteSpace: "nowrap", transition: "color 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.color = "#C0392B"}
+                onMouseLeave={e => e.currentTarget.style.color = "var(--ink-faint)"}>
+                Delete
               </button>
             )}
           </div>
 
-          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 8 }}>
             {currentTabIdx > 0 && (
-              <button onClick={() => setActiveTab(formTabs[currentTabIdx - 1])} title="Back" style={{ padding: "7px 13px", background: PAPER, color: FOLDER_INK, borderRadius: "var(--r-full)", fontSize: 14, fontWeight: 600, border: `1px solid ${MANILA_EDGE}` }}>←</button>
+              <button onClick={() => setActiveTab(formTabs[currentTabIdx - 1])} title="Back" style={navBtnStyle}>←</button>
             )}
             {currentTabIdx < formTabs.length - 1 && (
-              <button onClick={() => setActiveTab(formTabs[currentTabIdx + 1])} title="Next" style={{ padding: "7px 13px", background: PAPER, color: FOLDER_INK, borderRadius: "var(--r-full)", fontSize: 14, fontWeight: 600, border: `1px solid ${MANILA_EDGE}` }}>→</button>
+              <button onClick={() => setActiveTab(formTabs[currentTabIdx + 1])} title="Next" style={navBtnStyle}>→</button>
             )}
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
-            <button onClick={handleSave} style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 16px", background: "rgba(34,197,94,0.14)", color: "#15803D", borderRadius: "var(--r-full)", fontSize: 13.5, fontWeight: 600, border: "1.5px solid rgba(34,197,94,0.4)", whiteSpace: "nowrap" }}>
-              💾 {isExistingRecipe ? "Save Changes" : "Add Recipe"}
+          <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={handleSave} style={{ padding: "9px 18px", background: "var(--fire)", color: "white", borderRadius: "var(--r-full)", fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap" }}>
+              {isExistingRecipe ? "Save Changes" : "Add Recipe"}
             </button>
           </div>
         </div>

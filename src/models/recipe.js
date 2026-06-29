@@ -98,8 +98,10 @@ export function newPart(name = "") {
     name,
     description: "",   // one-line summary shown under the part name
     icon:        "",   // optional emoji visual cue
-    ingredients: [newIngredient()],
-    steps:       [newStep()],
+    // A fresh part starts pre-scaffolded: 3 ingredient rows and two steps,
+    // the second carrying one detail (Step 1, Step 2 + 2a).
+    ingredients: [newIngredient(), newIngredient(), newIngredient()],
+    steps:       [newStep(), { ...newStep(), substeps: [newSubstep()] }],
   };
 }
 

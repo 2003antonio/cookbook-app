@@ -32,16 +32,16 @@ export default function ShoppingScreen({ items, onAdd, onToggle, onRemove, onCle
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ padding: "24px 24px 16px", flexShrink: 0, borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600 }}>Shopping List</h1>
+      <div style={{ padding: "24px 24px 16px", flexShrink: 0, background: "linear-gradient(160deg, #18181B 0%, #2d2d30 100%)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, color: "white" }}>Shopping List</h1>
           {checked.length > 0 && (
             <button onClick={onClearChecked} style={{
               fontSize: 12.5, color: "var(--fire)", fontWeight: 600, letterSpacing: "0.02em",
             }}>Clear done ({checked.length})</button>
           )}
         </div>
-        <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
           {unchecked.length} item{unchecked.length !== 1 ? "s" : ""} remaining
         </p>
       </div>
@@ -83,7 +83,7 @@ export default function ShoppingScreen({ items, onAdd, onToggle, onRemove, onCle
         {showRecipePicker && (
           <div style={{
             marginTop: 8, borderRadius: "var(--r-md)", border: "1.5px solid var(--border)",
-            background: "white", boxShadow: "var(--shadow-md)", overflow: "hidden",
+            background: "var(--card-bg)", boxShadow: "var(--shadow-md)", overflow: "hidden",
             maxHeight: 220, overflowY: "auto",
           }}>
             {recipes.length === 0 ? (
@@ -97,7 +97,7 @@ export default function ShoppingScreen({ items, onAdd, onToggle, onRemove, onCle
                 borderBottom: "1px solid var(--border)", transition: "background 0.1s",
               }}
                 onMouseEnter={e => e.currentTarget.style.background = "var(--surface)"}
-                onMouseLeave={e => e.currentTarget.style.background = "white"}
+                onMouseLeave={e => e.currentTarget.style.background = "var(--card-bg)"}
               >
                 <div style={{ width: 32, height: 32, borderRadius: "var(--r-sm)", background: r.color, flexShrink: 0 }} />
                 <div>
@@ -175,7 +175,7 @@ function ShopItem({ item, onToggle, onRemove }) {
       <button onClick={() => onToggle(item.id)} style={{
         width: 22, height: 22, borderRadius: 6, flexShrink: 0,
         border: item.checked ? "none" : "2px solid var(--border)",
-        background: item.checked ? "var(--fire)" : "white",
+        background: item.checked ? "var(--fire)" : "transparent",
         display: "flex", alignItems: "center", justifyContent: "center",
         transition: "all 0.15s",
       }}>

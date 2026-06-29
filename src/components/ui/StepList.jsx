@@ -28,7 +28,7 @@ export function StepList({ steps }) {
                 <li key={j} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <span style={{
                     width: 22, height: 22, borderRadius: "50%",
-                    background: "white", border: "1.5px solid var(--fire-dim)", color: "var(--fire)",
+                    background: "var(--surface)", border: "1.5px solid var(--fire-dim)", color: "var(--fire)",
                     fontSize: 11, fontWeight: 700,
                     display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                   }}>{i + 1}{subLetter(j)}</span>

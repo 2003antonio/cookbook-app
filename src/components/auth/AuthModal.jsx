@@ -99,7 +99,7 @@ export default function AuthModal({ onClose }) {
       `}</style>
 
       <div style={{
-        background: "white", borderRadius: "var(--r-lg)", width: "100%",
+        background: "var(--card-bg)", borderRadius: "var(--r-lg)", width: "100%",
         maxWidth: 380, boxShadow: "var(--shadow-lg)", overflow: "hidden",
         padding: "28px 24px 24px",
       }}>

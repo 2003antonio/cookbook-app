@@ -86,7 +86,7 @@ export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorit
 
       <div style={{
         position: "fixed", left: 0, right: 0, bottom: 0,
-        height: "92vh", background: "white",
+        height: "92vh", background: "var(--card-bg)",
         borderRadius: "24px 24px 0 0",
         boxShadow: "0 -8px 40px rgba(0,0,0,0.15)",
         zIndex: 91, overflow: "hidden",
@@ -100,7 +100,7 @@ export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorit
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           style={{
-            flexShrink: 0, background: "white",
+            flexShrink: 0, background: "var(--card-bg)",
             padding: "10px 0 5px", display: "flex", justifyContent: "center",
             cursor: "grab", touchAction: "none",
           }}
@@ -130,7 +130,7 @@ export function DetailSheet({ recipe, onClose, onEdit, onDelete, onToggleFavorit
               {/* Stacked recipe — slides up over the base, slides down when dismissed */}
               {navStack.length > 0 && (
                 <div style={{
-                  position: "absolute", inset: 0, background: "white", overflowY: "auto",
+                  position: "absolute", inset: 0, background: "var(--card-bg)", overflowY: "auto",
                   animation: stackExiting
                     ? "stackSlideOut 0.36s cubic-bezier(0.4,0,0.2,1) forwards"
                     : "stackSlideIn 0.36s cubic-bezier(0.4,0,0.2,1)",

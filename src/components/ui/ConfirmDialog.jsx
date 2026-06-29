@@ -12,7 +12,7 @@ export function ConfirmDialog({ icon, iconBg, title, subtitle, cancelLabel, conf
       onClick={e => e.stopPropagation()}
     >
       <div style={{
-        background: "white", borderRadius: "var(--r-lg)", width: "100%", maxWidth: 300,
+        background: "var(--card-bg)", borderRadius: "var(--r-lg)", width: "100%", maxWidth: 300,
         boxShadow: "var(--shadow-lg)", padding: "24px 22px", textAlign: "center",
       }}>
         <div style={{

@@ -1,13 +1,64 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* ── Recipe flow transition animations ─────────────────────────────────────── */
+
+/* TypeChooser panel exits: shrinks and fades */
+@keyframes modal-exit {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 0; transform: scale(0.88) translateY(12px); }
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+/* Transition loader fades in */
+@keyframes loader-enter {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: scale(1); }
 }
+
+/* Transition loader fades out */
+@keyframes loader-exit {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(1.1); }
+}
+
+/* RecipeForm panel enters: rises and fades in */
+@keyframes modal-enter {
+  from { opacity: 0; transform: scale(0.92) translateY(24px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Backdrop fades in on first open */
+@keyframes backdrop-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Whole overlay fades out */
+@keyframes backdrop-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.modal-exiting {
+  animation: modal-exit 180ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.backdrop-entering {
+  animation: backdrop-enter 200ms ease forwards;
+}
+
+.backdrop-exiting {
+  animation: backdrop-fade-out 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.modal-entering {
+  animation: modal-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Applied to the icon wrapper only — backdrop is managed separately */
+.loader-entering {
+  animation: loader-enter 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.loader-exiting {
+  animation: loader-exit 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+

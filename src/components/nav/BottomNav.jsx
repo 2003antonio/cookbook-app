@@ -12,10 +12,10 @@ export function BottomNav({ active, onChange, shoppingCount }) {
   return (
     <nav style={{
       position: "fixed", bottom: 0, left: 0, right: 0,
-      height: "var(--nav-h)", background: "white",
+      height: "var(--nav-h)", background: "var(--nav-bg)",
       borderTop: "1px solid var(--border)",
       display: "flex", alignItems: "stretch",
-      boxShadow: "0 -4px 20px rgba(0,0,0,0.06)",
+      boxShadow: "0 -4px 20px rgba(0,0,0,0.12)",
       zIndex: 80,
       paddingBottom: "env(safe-area-inset-bottom)",
     }}>

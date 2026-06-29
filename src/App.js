@@ -1,10 +1,11 @@
-import { useState }        from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useAuth }         from "./hooks/useAuth";
 import { useRecipes }      from "./hooks/useRecipes";
 import { useShoppingList } from "./hooks/useShoppingList";
 import { CARD_COLORS, newPart } from "./models/recipe";
-import { RecipeForm }         from "./components/recipe/RecipeForm";
-import { RecipeTypeChooser }  from "./components/recipe/RecipeTypeChooser";
+import { RecipeForm }             from "./components/recipe/RecipeForm";
+import { RecipeTypeChooser }      from "./components/recipe/RecipeTypeChooser";
+import { RecipeTransitionLoader } from "./components/recipe/RecipeTransitionLoader";
 import { ToastHost }       from "./components/ui/ToastHost";
 import { BottomNav }       from "./components/nav/BottomNav";
 import HomeScreen          from "./screens/HomeScreen";
@@ -17,6 +18,14 @@ export default function App() {
   const { session, loading: authLoading } = useAuth();
   const userId = session?.user?.id ?? null;
 
+  // ── Theme ─────────────────────────────────────────────────────────────────────
+  const [theme, setTheme] = useState(() => localStorage.getItem('cookbook-theme') || 'dark');
+  useLayoutEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('cookbook-theme', theme);
+  }, [theme]);
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
+
   const { recipes, addRecipe, updateRecipe, deleteRecipe, toggleFavorite } = useRecipes(userId);
   const { items: shoppingItems, addItem, toggleItem, removeItem, clearChecked, addFromRecipe } = useShoppingList(userId);
 
@@ -25,20 +34,81 @@ export default function App() {
   const [formState,       setFormState]       = useState(null);
   const [recipesFilter,   setRecipesFilter]   = useState("All");
   const [showTypeChooser, setShowTypeChooser] = useState(false);
+  // 'idle' | 'chooser-exit' | 'loading-enter' | 'loading-exit' | 'form-enter'
+  const [transitionPhase, setTransitionPhase] = useState("idle");
+  const pendingFormStateRef = useRef(null);
+  const transitionTimerRef  = useRef(null);
+
+  // ── Shared backdrop ───────────────────────────────────────────────────────────
+  // A single backdrop is kept alive for the entire modal flow so it never
+  // flickers when switching between TypeChooser → loader → RecipeForm.
+  const [backdropVisible,  setBackdropVisible]  = useState(false);
+  const [backdropExiting,  setBackdropExiting]  = useState(false);
+  const backdropVisibleRef = useRef(false);
+  const backdropTimerRef   = useRef(null);
+
+  // Show/hide the shared backdrop.
+  const showBackdrop = useCallback(() => {
+    clearTimeout(backdropTimerRef.current);
+    backdropVisibleRef.current = true;
+    setBackdropExiting(false);
+    setBackdropVisible(true);
+  }, []);
+
+  const hideBackdrop = useCallback(() => {
+    if (!backdropVisibleRef.current) return;
+    setBackdropExiting(true);
+    backdropTimerRef.current = setTimeout(() => {
+      backdropVisibleRef.current = false;
+      setBackdropVisible(false);
+      setBackdropExiting(false);
+    }, 210);
+  }, []);
 
   // Opens the "Simple vs. Multi-part" chooser; replaces the old direct-to-form flow.
-  const openNewRecipeFlow = () => setShowTypeChooser(true);
+  const openNewRecipeFlow = () => { showBackdrop(); setTransitionPhase("idle"); setShowTypeChooser(true); };
 
   const blankRecipeBase = () => ({
     name: "", category: "Main Dish", prepTime: "", cookTime: "",
     baseServings: 4, color: CARD_COLORS[0], rating: 0, tags: [], notes: "",
   });
 
-  const handleChooseSimple = () => { setShowTypeChooser(false); setFormState("new"); };
-  const handleChooseMultiPart = () => {
-    setShowTypeChooser(false);
-    setFormState({ ...blankRecipeBase(), parts: [newPart(), newPart()] });
+  // Kick off the animated transition sequence.
+  // Timeline: chooser panel exits (180ms) → loader fades in (150ms) →
+  //   loader fully visible (~250ms) → loader fades out (200ms) → form enters (240ms)
+  const startTransition = (nextFormState) => {
+    pendingFormStateRef.current = nextFormState;
+    setTransitionPhase("chooser-exit");           // TypeChooser panel plays exit anim
+
+    const t1 = setTimeout(() => {
+      setShowTypeChooser(false);
+      setTransitionPhase("loading-enter");        // loader icon fades in
+    }, 180);
+
+    const t2 = setTimeout(() => {
+      setTransitionPhase("loading-exit");         // loader icon fades out (200ms)
+    }, 530);
+
+    const t3 = setTimeout(() => {
+      setFormState(pendingFormStateRef.current);  // RecipeForm mounts
+      setTransitionPhase("form-enter");
+    }, 730);
+
+    const t4 = setTimeout(() => {
+      setTransitionPhase("idle");
+    }, 970);
+
+    transitionTimerRef.current = [t1, t2, t3, t4];
   };
+
+  // Clean up timers if component unmounts mid-transition.
+  useEffect(() => () => {
+    transitionTimerRef.current?.forEach(clearTimeout);
+    clearTimeout(backdropTimerRef.current);
+  }, []);
+
+  const handleChooseSimple    = () => startTransition("new");
+  const handleChooseMultiPart = () => startTransition({ ...blankRecipeBase(), parts: [newPart(), newPart()] });
 
   const handleSave = (data) => {
     if (!formState?.id) {
@@ -53,6 +123,7 @@ export default function App() {
       setSelectedRecipe(updated);
     }
     setFormState(null);
+    hideBackdrop();
   };
 
   const handleDelete = (id) => {
@@ -77,10 +148,6 @@ export default function App() {
 
   const uncheckedCount = shoppingItems.filter(i => !i.checked).length;
 
-  // True only while editing an existing recipe so the detail sheet underneath
-  // can't be swiped away mid-edit.
-  const isEditingRecipe = formState !== null && formState !== "new";
-
   return (
     <div style={{
       height: "100dvh", display: "flex", flexDirection: "column",
@@ -98,6 +165,8 @@ export default function App() {
             onAddToShopping={addFromRecipe}
             session={session}
             authLoading={authLoading}
+            theme={theme}
+            toggleTheme={toggleTheme}
           />
         )}
 
@@ -107,14 +176,13 @@ export default function App() {
             onSelectRecipe={setSelectedRecipe}
             selectedRecipe={selectedRecipe}
             onCloseDetail={() => setSelectedRecipe(null)}
-            onEdit={r => setFormState(r)}
+            onEdit={r => { showBackdrop(); setFormState(r); }}
             onDelete={handleDelete}
             onToggleFavorite={toggleFavorite}
             onAddToShopping={addFromRecipe}
             onNewRecipe={openNewRecipeFlow}
             onNavigateRecipe={id => setSelectedRecipe(recipes.find(r => r.id === id) ?? null)}
             initialFilter={recipesFilter}
-            isEditing={isEditingRecipe}
           />
         )}
 
@@ -141,11 +209,30 @@ export default function App() {
         shoppingCount={uncheckedCount}
       />
 
+      {/* Shared backdrop — persists across the entire TypeChooser → loader → RecipeForm flow */}
+      {backdropVisible && (
+        <div
+          className={backdropExiting ? "backdrop-exiting" : "backdrop-entering"}
+          style={{
+            position: "fixed", inset: 0, zIndex: 199,
+            background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       {showTypeChooser && (
         <RecipeTypeChooser
           onChooseSimple={handleChooseSimple}
           onChooseMultiPart={handleChooseMultiPart}
-          onCancel={() => setShowTypeChooser(false)}
+          onCancel={() => { setShowTypeChooser(false); setTransitionPhase("idle"); hideBackdrop(); }}
+          isExiting={transitionPhase === "chooser-exit"}
+        />
+      )}
+
+      {(transitionPhase === "loading-enter" || transitionPhase === "loading-exit") && (
+        <RecipeTransitionLoader
+          phase={transitionPhase === "loading-enter" ? "entering" : "exiting"}
         />
       )}
 
@@ -153,9 +240,10 @@ export default function App() {
         <RecipeForm
           initial={formState === "new" ? null : formState}
           onSave={handleSave}
-          onCancel={() => setFormState(null)}
+          onCancel={() => { setFormState(null); setTransitionPhase("idle"); hideBackdrop(); }}
           onDelete={handleDelete}
           recipes={recipes}
+          isEntering={transitionPhase === "form-enter"}
         />
       )}
 

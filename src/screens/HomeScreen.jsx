@@ -4,9 +4,10 @@ import { RecipePreviewSheet }             from "../components/home/RecipePreview
 import { RecentRow, FavoritePickerSheet } from "../components/home/HomeComponents";
 import ProfileButton                      from "../components/auth/ProfileButton";
 
+
 export default function HomeScreen({
   recipes, onGoToRecipes, onOpenRecipe, onNewRecipe, onAddToShopping, onToggleFavorite,
-  session, authLoading,
+  session, authLoading, theme, toggleTheme,
 }) {
   const [previewRecipe,      setPreviewRecipe]      = useState(null);
   const [favoritePickerOpen, setFavoritePickerOpen] = useState(false);
@@ -25,12 +26,12 @@ export default function HomeScreen({
   return (
     <div style={{ flex: 1, overflowY: "auto", paddingBottom: "calc(var(--nav-h) + 16px)" }}>
       {/* Header */}
-      <div style={{ padding: "32px 24px 24px", background: "linear-gradient(160deg, var(--ink) 0%, #2d2d30 100%)" }}>
+      <div style={{ padding: "32px 24px 24px", background: "linear-gradient(160deg, #18181B 0%, #2d2d30 100%)" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
           <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--fire)" }}>
             Touch of Zade
           </p>
-          <ProfileButton session={session} loading={authLoading} />
+          <ProfileButton session={session} loading={authLoading} theme={theme} toggleTheme={toggleTheme} />
         </div>
         <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 700, color: "white", lineHeight: 1.1, marginBottom: 6 }}>
           Your kitchen,<br />organized.

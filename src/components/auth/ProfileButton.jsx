@@ -16,7 +16,7 @@ const avatarBaseStyle = {
 // ── Profile Button ───────────────────────────────────────────────────────────
 // Renders inline wherever it's placed in the layout (no portal, no fixed
 // positioning) so it scrolls and sits naturally within the page flow.
-export default function ProfileButton({ session, loading }) {
+export default function ProfileButton({ session, loading, theme, toggleTheme }) {
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -75,7 +75,7 @@ export default function ProfileButton({ session, loading }) {
       {menuOpen && (
         <div style={{
           position: "absolute", top: "calc(100% + 8px)", right: 0,
-          background: "white", borderRadius: "var(--r-md)",
+          background: "var(--card-bg)", borderRadius: "var(--r-md)",
           border: "1px solid var(--border)", boxShadow: "var(--shadow-lg)",
           minWidth: 200, overflow: "hidden", zIndex: 10,
         }}>
@@ -94,6 +94,30 @@ export default function ProfileButton({ session, loading }) {
               {email}
             </div>
           </div>
+
+          {/* Theme toggle row */}
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontFamily: "var(--font-body)", fontSize: 13.5, fontWeight: 500, color: "var(--ink)" }}>
+              {theme === "dark" ? "🌙 Dark mode" : "☀️ Light mode"}
+            </span>
+            <button
+              onClick={toggleTheme}
+              style={{
+                width: 40, height: 22, borderRadius: 999, position: "relative", border: "none",
+                background: theme === "light" ? "var(--fire)" : "var(--border)",
+                cursor: "pointer", transition: "background 0.2s", flexShrink: 0,
+              }}
+            >
+              <div style={{
+                position: "absolute", top: 3,
+                left: theme === "light" ? 21 : 3,
+                width: 16, height: 16, borderRadius: "50%",
+                background: "white", transition: "left 0.2s",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+              }} />
+            </button>
+          </div>
+
           <button
             onClick={() => { setMenuOpen(false); supabase.auth.signOut(); }}
             style={{

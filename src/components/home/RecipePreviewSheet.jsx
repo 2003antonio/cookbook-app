@@ -65,7 +65,7 @@ export function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
       {/* Sheet */}
       <div style={{
         position: "fixed", left: 0, right: 0, bottom: 0, height: "88vh",
-        background: "white", borderRadius: "24px 24px 0 0",
+        background: "var(--card-bg)", borderRadius: "24px 24px 0 0",
         boxShadow: "0 -8px 40px rgba(0,0,0,0.15)", zIndex: 91,
         display: "flex", flexDirection: "column",
         transform: isDragging ? `translateY(${dragY}px)` : undefined,
@@ -112,7 +112,7 @@ export function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
               <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", color: "var(--ink-faint)" }}>{p.label}</span>
               {p.label === "Servings" ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
-                  <div style={{ display: "flex", alignItems: "center", border: "1.5px solid var(--border)", borderRadius: 999, overflow: "hidden", background: "white" }}>
+                  <div style={{ display: "flex", alignItems: "center", border: "1.5px solid var(--border)", borderRadius: 999, overflow: "hidden", background: "var(--surface)" }}>
                     <button onClick={() => setServings(Math.max(1, currentServings - 1))} style={{ width: 32, height: 32 }}>−</button>
                     <span style={{ width: 32, textAlign: "center" }}>{currentServings}</span>
                     <button onClick={() => setServings(currentServings + 1)} style={{ width: 32, height: 32 }}>+</button>

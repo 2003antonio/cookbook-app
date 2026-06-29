@@ -32,9 +32,9 @@ export default function RecipesScreen({
   const pillStyle = isActive => ({
     whiteSpace: "nowrap", padding: "6px 14px",
     borderRadius: 999, fontSize: 13, fontWeight: 500,
-    background: isActive ? "var(--fire)" : "var(--surface)",
-    color:      isActive ? "white"       : "var(--ink-soft)",
-    border:     isActive ? "none"        : "1.5px solid var(--border)",
+    background: isActive ? "var(--fire)" : "rgba(255,255,255,0.1)",
+    color:      isActive ? "white"       : "rgba(255,255,255,0.7)",
+    border:     isActive ? "none"        : "1.5px solid rgba(255,255,255,0.15)",
     transition: "all 0.15s", flexShrink: 0,
   });
 
@@ -42,11 +42,11 @@ export default function RecipesScreen({
     <>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* Header */}
-        <div style={{ padding: "24px 24px 0", flexShrink: 0 }}>
+        <div style={{ padding: "24px 24px 0", flexShrink: 0, background: "linear-gradient(160deg, #18181B 0%, #2d2d30 100%)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div>
-              <h1 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, lineHeight: 1.1 }}>Recipes</h1>
-              <p style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, lineHeight: 1.1, color: "white" }}>Recipes</h1>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
                 {filtered.length} result{filtered.length !== 1 ? "s" : ""}
               </p>
             </div>
@@ -60,17 +60,19 @@ export default function RecipesScreen({
 
           {/* Search */}
           <div style={{ position: "relative", marginBottom: 14 }}>
-            <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, pointerEvents: "none" }}>🔍</span>
+            <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, pointerEvents: "none", opacity: 0.5 }}>🔍</span>
             <input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search recipes, tags…"
+              className="recipes-search"
               style={{
                 width: "100%", padding: "10px 14px 10px 36px",
-                border: "1.5px solid var(--border)", borderRadius: "var(--r-full)",
-                fontSize: 14, background: "var(--surface)", outline: "none", transition: "border-color 0.15s",
+                border: "1.5px solid rgba(255,255,255,0.15)", borderRadius: "var(--r-full)",
+                fontSize: 14, background: "rgba(255,255,255,0.1)", outline: "none",
+                transition: "border-color 0.15s", color: "white",
               }}
               onFocus={e => e.target.style.borderColor = "var(--fire)"}
-              onBlur={e  => e.target.style.borderColor = "var(--border)"}
+              onBlur={e  => e.target.style.borderColor = "rgba(255,255,255,0.15)"}
             />
           </div>
 
@@ -138,7 +140,7 @@ export default function RecipesScreen({
         recipes={recipes}
       />
 
-      <style>{`@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
+      <style>{`.recipes-search::placeholder { color: rgba(255,255,255,0.35); }`}</style>
     </>
   );
 }

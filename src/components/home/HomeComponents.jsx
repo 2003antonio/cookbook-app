@@ -31,10 +31,10 @@ export function FavoritePickerSheet({ recipes, onClose, onToggleFavorite, onNewR
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)", zIndex: 90, animation: "fadeIn 0.2s ease" }} />
 
-      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, maxHeight: "80vh", background: "white", borderRadius: "24px 24px 0 0", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)", zIndex: 91, display: "flex", flexDirection: "column", animation: "slideUp 0.36s cubic-bezier(0.4,0,0.2,1)" }}>
+      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, maxHeight: "80vh", background: "var(--card-bg)", borderRadius: "24px 24px 0 0", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)", zIndex: 91, display: "flex", flexDirection: "column", animation: "slideUp 0.36s cubic-bezier(0.4,0,0.2,1)" }}>
 
         {/* Header */}
-        <div style={{ background: "white", borderRadius: "24px 24px 0 0", padding: "22px 20px 16px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+        <div style={{ background: "var(--card-bg)", borderRadius: "24px 24px 0 0", padding: "22px 20px 16px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
             <div>
               <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--fire)", marginBottom: 4 }}>Favourites</p>

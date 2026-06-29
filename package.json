@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@lottiefiles/dotlottie-react": "^0.19.5",
     "@supabase/supabase-js": "^2.45.4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -15,8 +16,8 @@
     "web-vitals": "^2.1.4"
   },
   "engines": {
-  "node": "20.x"
-},
+    "node": "20.x"
+  },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
