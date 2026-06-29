@@ -16,7 +16,7 @@ export function RecipeCard({ recipe, onSelect, active, onToggleFavorite }) {
           ? "0 0 0 2.5px var(--fire), var(--shadow-md)"
           : "var(--shadow-card)",
         overflow: "hidden", cursor: "pointer",
-        border: active ? "none" : "1.5px solid var(--border)",
+        border: "none",
         transition: "transform 0.18s, box-shadow 0.18s",
         transform: active ? "translateY(-2px)" : "none",
         display: "flex", flexDirection: "column", height: "100%",
@@ -64,12 +64,10 @@ export function RecipeCard({ recipe, onSelect, active, onToggleFavorite }) {
       {/* Footer group — pinned to the bottom of the card (marginTop:auto eats the
           slack), so the band + tags line up across every card in a grid row no
           matter how many tags each recipe has. */}
-      <div style={{ marginTop: "auto" }}>
-        {/* Details — tinted band with time + rating only (both always present, so its
-            height never changes). Tags live outside it to keep the color block uniform. */}
+      <div style={{ marginTop: "auto", background: tint, borderTop: `1px solid ${tintBorder}` }}>
+        {/* Details — tinted band with time + rating */}
         <div style={{
-          padding: "9px 14px", background: tint,
-          borderTop: `1px solid ${tintBorder}`, borderBottom: `1px solid ${tintBorder}`,
+          padding: "9px 14px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
           <span style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>
@@ -78,22 +76,20 @@ export function RecipeCard({ recipe, onSelect, active, onToggleFavorite }) {
           <StarRating rating={recipe.rating || 0} size="sm" />
         </div>
 
-        {/* Tags — on the plain card surface, below the color band (up to 3). When there
-            are none, an invisible placeholder chip reserves exactly one tag row's worth
-            of space so every card keeps the same breathing room under the band. */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "10px 14px 13px" }}>
+        {/* Tags — below the time/rating row, still on the tinted surface */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "0 14px 13px" }}>
           {tags.length > 0 ? (
             tags.map(t => (
               <span key={t} style={{
                 fontSize: 10.5, padding: "2px 7px", borderRadius: 999,
                 background: "var(--surface)", color: "var(--ink-soft)",
-                border: "1px solid var(--border)", fontWeight: 500,
+                fontWeight: 500,
               }}>{t}</span>
             ))
           ) : (
             <span aria-hidden style={{
               fontSize: 10.5, padding: "2px 7px", borderRadius: 999,
-              border: "1px solid transparent", fontWeight: 500, visibility: "hidden",
+              fontWeight: 500, visibility: "hidden",
             }}>·</span>
           )}
         </div>

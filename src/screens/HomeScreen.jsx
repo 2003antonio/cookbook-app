@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { FavoritesCarousel }              from "../components/home/FavoritesCarousel";
+import { RecipeCarousel }                 from "../components/home/RecipeCarousel";
+import { RecipeStats }                    from "../components/home/RecipeStats";
 import { RecipePreviewSheet }             from "../components/home/RecipePreviewSheet";
-import { RecentRow, FavoritePickerSheet } from "../components/home/HomeComponents";
+import { FavoritePickerSheet }            from "../components/home/HomeComponents";
 import ProfileButton                      from "../components/auth/ProfileButton";
 
 
@@ -72,7 +73,13 @@ export default function HomeScreen({
       <div style={{ padding: "28px 24px", display: "flex", flexDirection: "column", gap: 32 }}>
         {/* Favorites carousel */}
         {favorites.length > 0 ? (
-          <FavoritesCarousel favorites={favorites} onSelect={setPreviewRecipe} onAddNew={() => setFavoritePickerOpen(true)} />
+          <RecipeCarousel
+            title="Your Favorites"
+            items={favorites}
+            onSelect={setPreviewRecipe}
+            onAddNew={() => setFavoritePickerOpen(true)}
+            paused={!!previewRecipe || favoritePickerOpen}
+          />
         ) : (
           <button
             onClick={() => setFavoritePickerOpen(true)}
@@ -84,17 +91,19 @@ export default function HomeScreen({
           </button>
         )}
 
-        {/* Recent recipes */}
+        {/* Recent recipes — same carousel as Favorites, rotating the opposite way */}
         {recent.length > 0 && (
-          <div>
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 600, color: "var(--ink)", marginBottom: 4 }}>
-              Recent
-            </h2>
-            <div>
-              {recent.map(r => <RecentRow key={r.id} recipe={r} onSelect={onOpenRecipe} />)}
-            </div>
-          </div>
+          <RecipeCarousel
+            title="Recent"
+            items={recent}
+            direction={-1}
+            onSelect={onOpenRecipe}
+            paused={!!previewRecipe || favoritePickerOpen}
+          />
         )}
+
+        {/* Cookbook stats */}
+        <RecipeStats recipes={recipes} />
 
         {/* Empty state CTA */}
         {recipes.length === 0 && (

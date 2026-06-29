@@ -3,11 +3,13 @@ import { StarRating } from "../ui/StarRating";
 import { formatTime, hexToRgba } from "../../models/recipe";
 
 export const CARD_W    = 280;
-export const GAP       = 16;
+// GAP matches the carousel track's paddingLeft (24) so the card that rotates
+// off the left edge sits completely off-screen instead of leaving a sliver.
+export const GAP       = 24;
 export const CARD_STEP = CARD_W + GAP;
 
 // Read-only card shown in the Favorites carousel.
-export function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
+export function FavoriteCard({ recipe, active, onSelect, dragDelta, instant = false }) {
   const [hovered, setHovered] = useState(false);
   const scale = active ? 1.02 : 0.96;
   const lift  = hovered ? -3 : 0;
@@ -20,7 +22,7 @@ export function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
   return (
     <div
       onClick={() => { if (Math.abs(dragDelta.current) > 5) return; onSelect(recipe); }}
-      onMouseEnter={() => setHovered(true)}
+      onMouseMove={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         minWidth: CARD_W, width: CARD_W,
@@ -29,7 +31,10 @@ export function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
         cursor: "pointer", overflow: "hidden",
         boxShadow: active ? "var(--shadow-lg)" : "var(--shadow-sm)",
         transform: `scale(${scale}) translateY(${lift}px)`,
-        transition: "transform 0.18s ease, box-shadow 0.18s ease",
+        // Shadow eases on the same curve/duration as the carousel slide so the
+        // elevation grows in lockstep with the card moving into the center.
+        // `instant` skips the animation during the loop's silent recenter jump.
+        transition: instant ? "none" : "transform 0.18s ease, box-shadow 0.4s cubic-bezier(0.25, 1, 0.35, 1)",
         flexShrink: 0,
       }}
     >
@@ -78,7 +83,7 @@ export function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
 }
 
 // Filler shown when there aren't enough favorites to fill the loop.
-export function PlaceholderFavoriteCard({ active, onAddNew, dragDelta }) {
+export function PlaceholderFavoriteCard({ active, onAddNew, dragDelta, instant = false }) {
   const [hovered, setHovered] = useState(false);
   const scale = active ? 1.02 : 0.96;
   const lift  = hovered ? -3 : 0;
@@ -86,7 +91,7 @@ export function PlaceholderFavoriteCard({ active, onAddNew, dragDelta }) {
   return (
     <div
       onClick={() => { if (Math.abs(dragDelta.current) > 5) return; onAddNew?.(); }}
-      onMouseEnter={() => setHovered(true)}
+      onMouseMove={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         minWidth: CARD_W, width: CARD_W, minHeight: 226,
@@ -96,7 +101,7 @@ export function PlaceholderFavoriteCard({ active, onAddNew, dragDelta }) {
         gap: 10, padding: "28px 22px", textAlign: "center",
         boxShadow: active ? "var(--shadow-md)" : "none",
         transform: `scale(${scale}) translateY(${lift}px)`,
-        transition: "transform 0.18s ease, box-shadow 0.18s ease",
+        transition: instant ? "none" : "transform 0.18s ease, box-shadow 0.4s cubic-bezier(0.25, 1, 0.35, 1)",
         flexShrink: 0,
       }}
     >
