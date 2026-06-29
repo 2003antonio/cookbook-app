@@ -15,6 +15,8 @@
 //
 // Recommended migration SQL (run once, non-destructive):
 //   ALTER TABLE recipes ADD COLUMN IF NOT EXISTS components jsonb;
+//   ALTER TABLE recipes ADD COLUMN IF NOT EXISTS image text;  -- cover photo (public URL)
+//   (the image bytes live in Storage — see storageService.js for bucket setup)
 
 import { normalizeRecipe } from "../models/recipe";
 
@@ -25,6 +27,7 @@ const RECIPE_FIELD_MAP = {
   cookTime:     "cook_time",
   baseServings: "base_servings",
   color:        "color",
+  image:        "image",       // cover photo: public URL into Storage (not the bytes)
   rating:       "rating",
   tags:         "tags",
   favorite:     "favorite",
@@ -50,6 +53,7 @@ export function rowToRecipe(row) {
     cookTime:     row.cook_time,
     baseServings: row.base_servings,
     color:        row.color,
+    image:        row.image || "",
     rating:       row.rating,
     tags:         row.tags || [],
     favorite:     row.favorite,

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase }                         from "../services/supabaseClient";
 import { SEED_RECIPES }                     from "../data/seeds";
 import { recipeToRow, rowToRecipe }         from "../services/recipeService";
+import { uploadRecipeImage, deleteRecipeImage, isDataUrl } from "../services/storageService";
 import { normalizeRecipe }                  from "../models/recipe";
 
 // Seeds are authored in the legacy `components` shape — migrate to `parts` once
@@ -50,15 +51,22 @@ export function useRecipes(userId) {
     setRecipes(prev => [r, ...prev]);
 
     if (userId) {
-      supabase
-        .from("recipes")
-        .insert({ id, user_id: userId, ...recipeToRow(r) })
-        .then(({ error }) => {
-          if (error) {
-            console.error("Failed to save recipe:", error.message);
-            setRecipes(prev => prev.filter(x => x.id !== id));
-          }
-        });
+      (async () => {
+        // Upload the cover photo to Storage first; the row stores only its URL.
+        const row = { ...r };
+        if (isDataUrl(r.image)) {
+          row.image = await uploadRecipeImage(userId, id, r.image) || "";
+          // Swap the heavy inline data URL in local state for the hosted URL.
+          setRecipes(prev => prev.map(x => x.id === id ? { ...x, image: row.image } : x));
+        }
+        const { error } = await supabase
+          .from("recipes")
+          .insert({ id, user_id: userId, ...recipeToRow(row) });
+        if (error) {
+          console.error("Failed to save recipe:", error.message);
+          setRecipes(prev => prev.filter(x => x.id !== id));
+        }
+      })();
     }
 
     return r;
@@ -71,13 +79,23 @@ export function useRecipes(userId) {
 
     if (!userId) return;
 
-    supabase
-      .from("recipes")
-      .update({ ...recipeToRow(updates), updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .then(({ error }) => {
-        if (error) console.error("Failed to update recipe:", error.message);
-      });
+    (async () => {
+      const next = { ...updates };
+      // A new photo (data URL) is uploaded; clearing it removes the stored file.
+      if (Object.prototype.hasOwnProperty.call(updates, "image")) {
+        if (isDataUrl(updates.image)) {
+          next.image = await uploadRecipeImage(userId, id, updates.image) || "";
+          setRecipes(prev => prev.map(r => r.id === id ? { ...r, image: next.image } : r));
+        } else if (!updates.image) {
+          deleteRecipeImage(userId, id);
+        }
+      }
+      const { error } = await supabase
+        .from("recipes")
+        .update({ ...recipeToRow(next), updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) console.error("Failed to update recipe:", error.message);
+    })();
   }, [userId]);
 
   const deleteRecipe = useCallback((id) => {
@@ -93,6 +111,8 @@ export function useRecipes(userId) {
       if (error) {
         console.error("Failed to delete recipe:", error.message);
         if (removed) setRecipes(prev => [removed, ...prev]);
+      } else {
+        deleteRecipeImage(userId, id);  // best-effort cleanup of the stored photo
       }
     });
   }, [userId]);

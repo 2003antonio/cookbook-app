@@ -70,7 +70,7 @@ export default function App() {
 
   const blankRecipeBase = () => ({
     name: "", category: "Main Dish", prepTime: "", cookTime: "",
-    baseServings: 4, color: CARD_COLORS[0], rating: 0, tags: [], notes: "",
+    baseServings: 4, color: CARD_COLORS[0], image: "", rating: 0, tags: [], notes: "",
   });
 
   // Kick off the animated transition sequence.

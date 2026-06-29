@@ -5,8 +5,9 @@ import { showToast }     from "../ui/ToastHost";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import {
   UNITS, CATEGORY_OPTIONS, CARD_COLORS, PART_ICONS,
-  newIngredient, newStep, newSubstep, subLetter, normalizeRecipe, newPart,
+  newIngredient, newStep, newSubstep, subLetter, normalizeRecipe, newPart, hexToRgba,
 } from "../../models/recipe";
+import { readImageFile } from "../../utils/image";
 
 // ── Amount parser (supports fractions and decimals) ───────────────────────────
 function parseAmount(val) {
@@ -22,7 +23,7 @@ function parseAmount(val) {
 function blankForm() {
   return {
     name: "", category: "Main Dish", prepTime: "", cookTime: "",
-    baseServings: 4, color: CARD_COLORS[0], rating: 0,
+    baseServings: 4, color: CARD_COLORS[0], image: "", rating: 0,
     tags: [], notes: "",
     parts: [newPart()],
   };
@@ -61,6 +62,7 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
       ...normalized,
       tags:  normalized.tags || [],
       notes: normalized.notes || "",
+      image: normalized.image || "",
       parts: normalized.parts?.length ? normalized.parts : [newPart()],
     };
   });
@@ -77,9 +79,12 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [showExitConfirm,   setShowExitConfirm]   = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [imageBusy,  setImageBusy]  = useState(false);
+  const [imageError, setImageError] = useState("");
 
   const categoryRef   = useRef(null);
   const iconPickerRef = useRef(null);
+  const imageInputRef = useRef(null);
   const bodyRef       = useRef(null);
   const scrollToBottom = () => requestAnimationFrame(() => requestAnimationFrame(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -111,6 +116,21 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
 
   // ── Form-level setters ───────────────────────────────────────────────────────
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  // ── Cover photo ──────────────────────────────────────────────────────────────
+  const handleImagePick = async (file) => {
+    if (!file) return;
+    setImageError("");
+    setImageBusy(true);
+    try {
+      const dataUrl = await readImageFile(file);
+      set("image", dataUrl);
+    } catch (err) {
+      setImageError(err?.message || "Could not add that image");
+    } finally {
+      setImageBusy(false);
+    }
+  };
 
   // ── Part setters ─────────────────────────────────────────────────────────────
   const updatePart = (partId, changes) =>
@@ -161,6 +181,18 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
   // ── Tag setters ──────────────────────────────────────────────────────────────
   const addTag    = () => { const t = tagInput.trim(); if (t && !form.tags.includes(t)) set("tags", [...form.tags, t]); setTagInput(""); };
   const removeTag = t  => set("tags", form.tags.filter(x => x !== t));
+
+  // Drag-to-reorder tags — order matters since the card only shows the first 3.
+  const [dragTagIdx, setDragTagIdx] = useState(null);
+  const moveTag = (from, to) => {
+    if (from == null || to == null || from === to) return;
+    setForm(f => {
+      const next = [...f.tags];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return { ...f, tags: next };
+    });
+  };
 
   // ── Close dropdowns on click-outside ─────────────────────────────────────────
   useEffect(() => {
@@ -293,6 +325,12 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
     </div>
   );
 
+  // Overlay buttons on the cover-photo preview (readable over any image).
+  const imgActionBtn = {
+    padding: "5px 11px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+    background: "rgba(0,0,0,0.55)", color: "white", backdropFilter: "blur(4px)",
+  };
+
   // ── Footer nav / action buttons ──────────────────────────────────────────────
   const navBtnStyle = {
     width: 34, height: 34, borderRadius: "50%",
@@ -372,6 +410,41 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
           {/* ── Details ── */}
           {activeTab === "details" && (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14, justifyContent: "space-between" }}>
+              <Field label="Cover photo">
+                <input
+                  ref={imageInputRef} type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={e => { handleImagePick(e.target.files?.[0]); e.target.value = ""; }}
+                />
+                {form.image ? (
+                  <div style={{ position: "relative", height: 150, borderRadius: "var(--r-md)", overflow: "hidden", border: "1px solid var(--border)" }}>
+                    <img src={form.image} alt="Recipe cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 6 }}>
+                      <button type="button" onClick={() => imageInputRef.current?.click()} style={imgActionBtn}>
+                        {imageBusy ? "…" : "Replace"}
+                      </button>
+                      <button type="button" onClick={() => { set("image", ""); setImageError(""); }} style={imgActionBtn}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button" onClick={() => imageInputRef.current?.click()} disabled={imageBusy}
+                    style={{
+                      height: 120, width: "100%", borderRadius: "var(--r-md)",
+                      border: "1.5px dashed var(--border)", background: hexToRgba(form.color, 0.12),
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                      gap: 5, color: "var(--ink-soft)", cursor: imageBusy ? "default" : "pointer",
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>{imageBusy ? "⏳" : "📷"}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{imageBusy ? "Adding photo…" : "Add a cover photo"}</span>
+                    <span style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>A photo of the finished dish</span>
+                  </button>
+                )}
+                {imageError && <span style={{ fontSize: 11.5, color: "#ef4444" }}>{imageError}</span>}
+              </Field>
+
               <Field label="Recipe name *">
                 <input
                   style={inputStyle(errors.name)} value={form.name}
@@ -485,14 +558,34 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
                   <button onClick={addTag} style={{ padding: "9px 16px", background: "var(--surface)", borderRadius: "var(--r-sm)", fontSize: 13.5, fontWeight: 500, color: "var(--ink-soft)", whiteSpace: "nowrap" }}>Add</button>
                 </div>
                 {form.tags.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-                    {form.tags.map(t => (
-                      <span key={t} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 10px", background: "var(--fire-dim)", color: "var(--fire)", borderRadius: 999, fontSize: 12.5, fontWeight: 500 }}>
-                        {t}
-                        <button onClick={() => removeTag(t)} style={{ fontSize: 10, color: "var(--fire)", opacity: 0.6 }}>✕</button>
-                      </span>
-                    ))}
-                  </div>
+                  <>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                      {form.tags.map((t, idx) => (
+                        <span
+                          key={t}
+                          draggable
+                          onDragStart={() => setDragTagIdx(idx)}
+                          onDragEnter={() => { if (dragTagIdx !== null) { moveTag(dragTagIdx, idx); setDragTagIdx(idx); } }}
+                          onDragOver={e => e.preventDefault()}
+                          onDragEnd={() => setDragTagIdx(null)}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 4, padding: "3px 10px",
+                            background: "var(--fire-dim)", color: "var(--fire)", borderRadius: 999,
+                            fontSize: 12.5, fontWeight: 500,
+                            cursor: "grab", opacity: dragTagIdx === idx ? 0.5 : 1,
+                          }}
+                        >
+                          {t}
+                          <button onClick={() => removeTag(t)} style={{ fontSize: 10, color: "var(--fire)", opacity: 0.6 }}>✕</button>
+                        </span>
+                      ))}
+                    </div>
+                    {form.tags.length > 3 && (
+                      <p style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 6, lineHeight: 1.4 }}>
+                        Please note the first 3 tags will be the ones shown on the recipe card.
+                      </p>
+                    )}
+                  </>
                 )}
               </Field>
             </div>

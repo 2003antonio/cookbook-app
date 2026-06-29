@@ -10,7 +10,9 @@ export function RecentRow({ recipe, onSelect }) {
       onMouseEnter={e => e.currentTarget.style.opacity = "0.7"}
       onMouseLeave={e => e.currentTarget.style.opacity = "1"}
     >
-      <div style={{ width: 48, height: 48, borderRadius: "var(--r-sm)", background: recipe.color, flexShrink: 0 }} />
+      <div style={{ width: 48, height: 48, borderRadius: "var(--r-sm)", background: recipe.color, flexShrink: 0, overflow: "hidden" }}>
+        {recipe.image && <img src={recipe.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600, fontSize: 14.5, color: "var(--ink)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {recipe.name}
@@ -70,8 +72,10 @@ export function FavoritePickerSheet({ recipes, onClose, onToggleFavorite, onNewR
                   onMouseEnter={e => { if (!r.favorite) e.currentTarget.style.background = "var(--surface)"; }}
                   onMouseLeave={e => { if (!r.favorite) e.currentTarget.style.background = "transparent"; }}
                 >
-                  {/* Color swatch */}
-                  <div style={{ width: 46, height: 46, borderRadius: "var(--r-sm)", background: r.color, flexShrink: 0, boxShadow: "var(--shadow-sm)" }} />
+                  {/* Color swatch / cover photo */}
+                  <div style={{ width: 46, height: 46, borderRadius: "var(--r-sm)", background: r.color, flexShrink: 0, boxShadow: "var(--shadow-sm)", overflow: "hidden" }}>
+                    {r.image && <img src={r.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                  </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 14.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>

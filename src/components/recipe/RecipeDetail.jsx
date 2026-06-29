@@ -351,7 +351,14 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Hero */}
-      <div style={{ background: recipe.color, padding: "48px 24px 28px", position: "relative", flexShrink: 0 }}>
+      <div style={{
+        background: recipe.color,
+        backgroundImage: recipe.image
+          ? `linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.5)), url(${recipe.image})`
+          : undefined,
+        backgroundSize: "cover", backgroundPosition: "center",
+        padding: "48px 24px 28px", position: "relative", flexShrink: 0,
+      }}>
         <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8 }}>
           <HeroBtn onClick={handleToggleFavorite} title={isFavorite ? "Unfavorite" : "Favorite"}>
             {isFavorite ? "♥" : "♡"}

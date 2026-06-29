@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { StarRating } from "../ui/StarRating";
-import { formatTime } from "../../models/recipe";
+import { formatTime, hexToRgba } from "../../models/recipe";
 
 export const CARD_W    = 280;
 export const GAP       = 16;
@@ -11,6 +11,11 @@ export function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
   const [hovered, setHovered] = useState(false);
   const scale = active ? 1.02 : 0.96;
   const lift  = hovered ? -3 : 0;
+
+  const hasImage   = !!recipe.image;
+  const tint       = hexToRgba(recipe.color, 0.12);
+  const tintBorder = hexToRgba(recipe.color, 0.45);
+  const tags       = (recipe.tags || []).slice(0, 3);
 
   return (
     <div
@@ -28,30 +33,45 @@ export function FavoriteCard({ recipe, active, onSelect, dragDelta }) {
         flexShrink: 0,
       }}
     >
-      <div style={{ height: 110, background: recipe.color, display: "flex", alignItems: "flex-end", padding: 12 }}>
+      <div style={{ height: 110, background: recipe.color, position: "relative", display: "flex", alignItems: "flex-end", padding: 12 }}>
+        {hasImage && (
+          <>
+            <img src={recipe.image} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.4), transparent 55%)" }} />
+          </>
+        )}
         <span style={{
+          position: "relative", zIndex: 1,
           fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em",
           background: "rgba(255,255,255,0.22)", backdropFilter: "blur(4px)",
           color: "white", padding: "3px 8px", borderRadius: 999,
         }}>{recipe.category}</span>
       </div>
-      <div style={{ padding: "14px 16px 16px" }}>
-        <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16.5, fontWeight: 600, color: "var(--ink)", marginBottom: 8, lineHeight: 1.3 }}>
+
+      {/* Name */}
+      <div style={{ padding: "13px 16px 9px" }}>
+        <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16.5, fontWeight: 600, color: "var(--ink)", lineHeight: 1.3 }}>
           {recipe.name}
         </h3>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 9 }}>
+      </div>
+
+      {/* Details — tinted with the card color, a clear color change from the name */}
+      <div style={{ padding: "11px 16px 15px", background: tint, borderTop: `1px solid ${tintBorder}` }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: tags.length ? 9 : 0 }}>
           <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>⏱ {formatTime(recipe.prepTime, recipe.cookTime)}</span>
           <StarRating rating={recipe.rating || 0} size="sm" />
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {(recipe.tags || []).slice(0, 3).map(t => (
-            <span key={t} style={{
-              fontSize: 10.5, padding: "2px 8px", borderRadius: 999,
-              background: "var(--surface)", color: "var(--ink-soft)",
-              border: "1px solid var(--border)", fontWeight: 500,
-            }}>{t}</span>
-          ))}
-        </div>
+        {tags.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {tags.map(t => (
+              <span key={t} style={{
+                fontSize: 10.5, padding: "2px 8px", borderRadius: 999,
+                background: "var(--card-bg)", color: "var(--ink-soft)",
+                border: "1px solid var(--border)", fontWeight: 500,
+              }}>{t}</span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

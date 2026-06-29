@@ -88,10 +88,17 @@ export function RecipePreviewSheet({ recipe, onClose, onAddToShopping }) {
         </div>
 
         {/* Hero */}
-        <div style={{ background: recipe.color, padding: "20px 24px 28px", position: "relative", flexShrink: 0 }}>
+        <div style={{
+          background: recipe.color,
+          backgroundImage: recipe.image
+            ? `linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.5)), url(${recipe.image})`
+            : undefined,
+          backgroundSize: "cover", backgroundPosition: "center",
+          padding: "20px 24px 28px", position: "relative", flexShrink: 0,
+        }}>
           <button onClick={handleClose} style={{ position: "absolute", top: 16, right: 16, width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.22)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 6 }}>{recipe.category}</div>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 700, color: "white", lineHeight: 1.15, marginBottom: 10 }}>{recipe.name}</h2>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 700, color: "white", lineHeight: 1.15, marginBottom: 10, textShadow: recipe.image ? "0 1px 6px rgba(0,0,0,0.25)" : undefined }}>{recipe.name}</h2>
           <StarRating rating={recipe.rating || 0} />
         </div>
 

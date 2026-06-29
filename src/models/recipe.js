@@ -203,6 +203,21 @@ export function allIngredients(recipe) {
   return parts.flatMap(p => p.ingredients || []);
 }
 
+// ── Color helpers ─────────────────────────────────────────────────────────────
+// Converts a card color (always a hex string in this app) into an rgba() string
+// so it can be used as a translucent tint. Falls back to the raw value for any
+// color we can't parse, so it's safe to call on arbitrary input.
+export function hexToRgba(hex, alpha = 1) {
+  if (typeof hex !== "string") return `rgba(0,0,0,${alpha})`;
+  let h = hex.trim().replace("#", "");
+  if (h.length === 3) h = h.split("").map(c => c + c).join("");
+  if (h.length !== 6 || /[^0-9a-fA-F]/.test(h)) return hex;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 // ── Formatters ────────────────────────────────────────────────────────────────
 export function formatAmount(amount, multiplier = 1) {
   const val = amount * multiplier;
