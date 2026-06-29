@@ -44,8 +44,9 @@ export default function RecipesScreen({
           bar (or anywhere in the header) scrolls the list, instead of the old
           split where only the inner grid scrolled and the header swallowed taps. */}
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", position: "relative" }}>
-        {/* Header — sticky so it stays put while the list scrolls beneath it */}
-        <div style={{ position: "sticky", top: 0, zIndex: 10, padding: "24px 24px 0", background: "linear-gradient(160deg, #18181B 0%, #2d2d30 100%)" }}>
+        {/* Header — scrolls away with the list (not pinned). The scroll fix above
+            comes from it living inside the one scroll container, not from sticky. */}
+        <div style={{ padding: "24px 24px 0", background: "linear-gradient(160deg, #18181B 0%, #2d2d30 100%)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div>
               <h1 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, lineHeight: 1.1, color: "white" }}>Recipes</h1>
@@ -106,7 +107,7 @@ export default function RecipesScreen({
         </div>
 
         {/* Grid */}
-        <div style={{ padding: "0 24px", paddingBottom: "calc(var(--nav-h) + 16px)" }}>
+        <div style={{ padding: "10px 24px", paddingBottom: "calc(var(--nav-h) + 16px)" }}>
           {filtered.length > 0 ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
               {filtered.map(r => (

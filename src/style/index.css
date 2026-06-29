@@ -62,11 +62,6 @@
   animation: loader-exit 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-/* ── RecipeTypeChooser layout ─────────────────────────────────────────────── */
-/* Two option cards sit side-by-side, but on phones that squeezes the preview
-   mockups and wraps the button labels — stack them vertically instead. */
-.type-chooser-cards { flex-direction: row; }
-@media (max-width: 480px) {
-  .type-chooser-cards { flex-direction: column; }
-}
+/* The RecipeTypeChooser handles its responsive layout in the component itself
+   (stacking + a `zoom` descale on phones), so no media query is needed here. */
 
