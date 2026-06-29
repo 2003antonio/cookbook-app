@@ -107,7 +107,7 @@ export default function RecipesScreen({
         </div>
 
         {/* Grid */}
-        <div style={{ padding: "10px 24px", paddingBottom: "calc(var(--nav-h) + 16px)" }}>
+        <div style={{ padding: "10px 24px", paddingBottom: "calc(var(--nav-total) + 16px)" }}>
           {filtered.length > 0 ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
               {filtered.map(r => (

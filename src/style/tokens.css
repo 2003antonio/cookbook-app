@@ -43,6 +43,10 @@
 
   /* Nav */
   --nav-h: 68px;
+  /* Full nav footprint including the iOS home-indicator safe area (non-zero only
+     in standalone / home-screen mode). Used for the nav height and for the
+     bottom padding screens reserve so content clears the nav. */
+  --nav-total: calc(var(--nav-h) + env(safe-area-inset-bottom));
 }
 
 /* ── Dark mode overrides ─────────────────────────────────────────────────────── */

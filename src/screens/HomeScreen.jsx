@@ -24,7 +24,7 @@ export default function HomeScreen({
   ];
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", paddingBottom: "calc(var(--nav-h) + 16px)" }}>
+    <div style={{ flex: 1, overflowY: "auto", paddingBottom: "calc(var(--nav-total) + 16px)" }}>
       {/* Header */}
       <div style={{ padding: "32px 24px 24px", background: "linear-gradient(160deg, #18181B 0%, #2d2d30 100%)" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>

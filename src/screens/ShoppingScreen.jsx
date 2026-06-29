@@ -111,7 +111,7 @@ export default function ShoppingScreen({ items, onAdd, onToggle, onRemove, onCle
       </div>
 
       {/* List */}
-      <div style={{ flex: 1, overflowY: "auto", paddingBottom: "calc(var(--nav-h) + 16px)" }}>
+      <div style={{ flex: 1, overflowY: "auto", paddingBottom: "calc(var(--nav-total) + 16px)" }}>
         {items.length === 0 ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "60px 24px", gap: 10, textAlign: "center" }}>
             <span style={{ fontSize: 44 }}>🛒</span>
