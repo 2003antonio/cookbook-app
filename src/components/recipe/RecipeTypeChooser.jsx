@@ -124,8 +124,9 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel,
           </p>
         </div>
 
-        {/* Cards */}
-        <div style={{ display: "flex", gap: 14 }}>
+        {/* Cards — side-by-side on tablet/desktop, stacked on phones so the
+            faux-form previews and button labels don't get squeezed/truncated. */}
+        <div className="type-chooser-cards" style={{ display: "flex", gap: 14 }}>
           {/* Simple Recipe */}
           <div style={cardStyle}>
             <div style={iconWrap("var(--fire-dim)")}>📄</div>

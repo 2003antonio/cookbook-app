@@ -40,9 +40,12 @@ export default function RecipesScreen({
 
   return (
     <>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {/* Header */}
-        <div style={{ padding: "24px 24px 0", flexShrink: 0, background: "linear-gradient(160deg, #18181B 0%, #2d2d30 100%)" }}>
+      {/* One scroll container for the whole screen — a drag started on the search
+          bar (or anywhere in the header) scrolls the list, instead of the old
+          split where only the inner grid scrolled and the header swallowed taps. */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", position: "relative" }}>
+        {/* Header — sticky so it stays put while the list scrolls beneath it */}
+        <div style={{ position: "sticky", top: 0, zIndex: 10, padding: "24px 24px 0", background: "linear-gradient(160deg, #18181B 0%, #2d2d30 100%)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div>
               <h1 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, lineHeight: 1.1, color: "white" }}>Recipes</h1>
@@ -76,8 +79,10 @@ export default function RecipesScreen({
             />
           </div>
 
-          {/* Category pills */}
-          <div style={{ display: "flex", gap: 7, overflowX: "auto", paddingBottom: 14, WebkitOverflowScrolling: "touch" }}>
+          {/* Category pills — full-bleed so overflowing chips scroll to the screen
+              edge instead of being hard-clipped 24px in (which left a sliced pill
+              "sticking out" the side). */}
+          <div style={{ display: "flex", gap: 7, overflowX: "auto", margin: "0 -24px", padding: "0 24px 14px", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
             <button onClick={() => setActiveCategory("All")} style={pillStyle(activeCategory === "All")}>
               All <span style={{ opacity: 0.7, fontSize: 11 }}>({recipes.length})</span>
             </button>
@@ -101,9 +106,9 @@ export default function RecipesScreen({
         </div>
 
         {/* Grid */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 24px", paddingBottom: "calc(var(--nav-h) + 16px)" }}>
+        <div style={{ padding: "0 24px", paddingBottom: "calc(var(--nav-h) + 16px)" }}>
           {filtered.length > 0 ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
               {filtered.map(r => (
                 <RecipeCard
                   key={r.id} recipe={r}

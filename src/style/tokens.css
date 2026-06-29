@@ -84,8 +84,10 @@ ul, ol { list-style: none; }
 input, textarea, select { font-family: inherit; }
 img { display: block; max-width: 100%; }
 
-/* ── Scrollbars ── */
-::-webkit-scrollbar { width: 0; height: 0; }
+/* ── Scrollbars — hidden across engines (mobile-first; no stray bars beside
+   the category pills or recipe grid) ── */
+* { scrollbar-width: none; -ms-overflow-style: none; }
+::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
 /* ── Tab switch ── */
 /* The newly-selected tab panel sweeps in from the direction of travel and
