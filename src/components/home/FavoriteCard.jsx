@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { StarRating } from "../ui/StarRating";
 import { formatTime, hexToRgba } from "../../models/recipe";
 
@@ -8,8 +8,10 @@ export const CARD_W    = 280;
 export const GAP       = 24;
 export const CARD_STEP = CARD_W + GAP;
 
-// Read-only card shown in the Favorites carousel.
-export function FavoriteCard({ recipe, active, onSelect, dragDelta, instant = false }) {
+// Read-only card shown in the Favorites carousel. Memoized so the carousel's
+// per-pointer-move drag re-renders don't reconcile every card in the loop — a
+// card only re-renders when its own props (active/instant/recipe) change.
+export const FavoriteCard = memo(function FavoriteCard({ recipe, active, onSelect, dragDelta, instant = false }) {
   const [hovered, setHovered] = useState(false);
   const scale = active ? 1.02 : 0.96;
   const lift  = hovered ? -3 : 0;
@@ -80,10 +82,10 @@ export function FavoriteCard({ recipe, active, onSelect, dragDelta, instant = fa
       </div>
     </div>
   );
-}
+});
 
 // Filler shown when there aren't enough favorites to fill the loop.
-export function PlaceholderFavoriteCard({ active, onAddNew, dragDelta, instant = false }) {
+export const PlaceholderFavoriteCard = memo(function PlaceholderFavoriteCard({ active, onAddNew, dragDelta, instant = false }) {
   const [hovered, setHovered] = useState(false);
   const scale = active ? 1.02 : 0.96;
   const lift  = hovered ? -3 : 0;
@@ -111,4 +113,4 @@ export function PlaceholderFavoriteCard({ active, onAddNew, dragDelta, instant =
       </p>
     </div>
   );
-}
+});

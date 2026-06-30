@@ -1,30 +1,4 @@
-import { StarRating } from "../ui/StarRating";
 import { formatTime } from "../../models/recipe";
-
-// ── Recent Recipe Row ─────────────────────────────────────────────────────────
-export function RecentRow({ recipe, onSelect }) {
-  return (
-    <button
-      onClick={() => onSelect(recipe)}
-      style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: "1px solid var(--border)", width: "100%", textAlign: "left", transition: "opacity 0.15s" }}
-      onMouseEnter={e => e.currentTarget.style.opacity = "0.7"}
-      onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-    >
-      <div style={{ width: 48, height: 48, borderRadius: "var(--r-sm)", background: recipe.color, flexShrink: 0, overflow: "hidden" }}>
-        {recipe.image && <img src={recipe.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 14.5, color: "var(--ink)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {recipe.name}
-        </div>
-        <div style={{ fontSize: 12, color: "var(--ink-faint)" }}>
-          {recipe.category} · {formatTime(recipe.prepTime, recipe.cookTime)}
-        </div>
-      </div>
-      <StarRating rating={recipe.rating || 0} size="sm" />
-    </button>
-  );
-}
 
 // ── Favorite Picker Sheet ─────────────────────────────────────────────────────
 // Lists existing recipes so the user can star one as a favorite.
