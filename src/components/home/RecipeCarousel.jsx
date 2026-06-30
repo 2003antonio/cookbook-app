@@ -45,7 +45,6 @@ export function RecipeCarousel({ title, items, onSelect, onAddNew, direction = 1
   const [active,       setActive]       = useState(() => n + ((savedDotByTitle.get(title) ?? 0) % n));
   const [transitioning, setTransitioning] = useState(false);
   const [recentering,  setRecentering]  = useState(false);
-  const [dragOffset,   setDragOffset]   = useState(0);
   const [dragPaused,   setDragPaused]   = useState(false);
   const [hovered,      setHovered]      = useState(false);
   const [inView,       setInView]       = useState(true);
@@ -59,6 +58,8 @@ export function RecipeCarousel({ title, items, onSelect, onAddNew, direction = 1
   const velocity  = useRef(0);
   const dragging  = useRef(false);
   const dragDelta = useRef(0);
+  const trackRef  = useRef(null);
+  const rafId     = useRef(null);
 
   // Re-center into the middle loop copy when the slide count changes (favorite
   // added/removed, or width measure changes the placeholder padding), keeping
@@ -113,12 +114,14 @@ export function RecipeCarousel({ title, items, onSelect, onAddNew, direction = 1
   useEffect(() => {
     if (autoplayPaused) return undefined;
     const timer = setTimeout(() => {
-      setDragOffset(0);
       setTransitioning(true);
       setActive(a => a + direction);
     }, 4750);
     return () => clearTimeout(timer);
   }, [active, autoplayPaused, direction]);
+
+  // Cancel any in-flight drag-transform frame on unmount (tab switch mid-drag).
+  useEffect(() => () => { if (rafId.current != null) cancelAnimationFrame(rafId.current); }, []);
 
   // Restore card transitions one frame after a recenter jump has been painted.
   useEffect(() => {
@@ -129,7 +132,7 @@ export function RecipeCarousel({ title, items, onSelect, onAddNew, direction = 1
 
   if (!items.length) return null;
 
-  const goTo = idx => { setDragOffset(0); setTransitioning(true); setActive(idx); };
+  const goTo = idx => { setTransitioning(true); setActive(idx); };
 
   // After snap, silently re-center into the middle copy of the loop. The jump
   // lands the same card on a different DOM node, so flag `recentering` to make
@@ -145,6 +148,18 @@ export function RecipeCarousel({ title, items, onSelect, onAddNew, direction = 1
     if (active < n || active >= n * 2) {
       setRecentering(true);
       setActive(n + (((active - n) % n) + n) % n);
+    }
+  };
+
+  // Writes the dragged transform straight to the DOM, skipping React state/
+  // render entirely while the finger is moving. touchmove fires far more often
+  // than mouseMove and at less predictable cadence, so funnelling every tick
+  // through setState (full re-render) is what made touch dragging choppy while
+  // mouse dragging looked fine. rAF-throttled to at most one paint per frame.
+  const applyTransform = () => {
+    rafId.current = null;
+    if (trackRef.current) {
+      trackRef.current.style.transform = `translateX(calc(${-active * CARD_STEP}px + ${dragDelta.current}px))`;
     }
   };
 
@@ -164,12 +179,13 @@ export function RecipeCarousel({ title, items, onSelect, onAddNew, direction = 1
     velocity.current  = x - lastX.current;
     lastX.current     = x;
     dragDelta.current = x - startX.current;
-    setDragOffset(dragDelta.current);
+    if (rafId.current == null) rafId.current = requestAnimationFrame(applyTransform);
   };
 
   const onUp = () => {
     if (!dragging.current) return;
     dragging.current = false;
+    if (rafId.current != null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
     setDragPaused(false);
     const move = dragDelta.current;
     const v    = velocity.current;
@@ -202,6 +218,7 @@ export function RecipeCarousel({ title, items, onSelect, onAddNew, direction = 1
 
       <div ref={outerRef} style={{ overflow: "hidden", margin: "0 -24px", padding: "4px 0 16px" }}>
         <div
+          ref={trackRef}
           onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
           // Only a true mouse pointer pauses on hover; touch taps synthesize a
           // mouseenter that would otherwise leave autoplay stuck paused.
@@ -215,7 +232,7 @@ export function RecipeCarousel({ title, items, onSelect, onAddNew, direction = 1
             // to match the tallest (e.g. a 2-line name), leaving dead space below
             // shorter cards' bands.
             alignItems: "flex-start",
-            transform: `translateX(calc(${-active * CARD_STEP}px + ${dragOffset}px))`,
+            transform: `translateX(${-active * CARD_STEP}px)`,
             transition: transitioning ? "transform 0.4s cubic-bezier(0.25, 1, 0.35, 1)" : "none",
             // pan-y lets vertical page scroll through but keeps horizontal swipes
             // for the carousel; willChange promotes the track to its own layer only
