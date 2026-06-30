@@ -116,7 +116,7 @@ export function RecipeCarousel({ title, items, onSelect, onAddNew, direction = 1
       setDragOffset(0);
       setTransitioning(true);
       setActive(a => a + direction);
-    }, 5000);
+    }, 4750);
     return () => clearTimeout(timer);
   }, [active, autoplayPaused, direction]);
 

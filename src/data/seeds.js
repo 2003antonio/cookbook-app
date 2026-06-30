@@ -1,23 +1,14 @@
 // ── Seed / demo recipes ───────────────────────────────────────────────────────
 // Shown when no user is signed in. Not part of the recipe model — just sample
 // data. Update or remove these as the app matures; they never touch Supabase.
-//
-// All recipes use the component shape:
-//   components: [{ id, name, yieldAmt, yieldUnit, ingredients[], steps[], notes }]
-//
-// Simple recipes have one unnamed component (name: "").
-// The Vermont Cheddar Soup is kept as a single component to match the book.
-// Southern Fried Chicken is an example of a multi-component recipe.
 
 export const SEED_RECIPES = [
-  // ── Southern Fried Chicken ──────────────────────────────────────────────────
-  // Multi-component recipe. Each component can stand alone as its own recipe.
-  // The master component ("Frying & Gravy") holds the assembly work.
   {
     id: "1", name: "Southern Fried Chicken", category: "Main Dish",
+    image:"https://i.postimg.cc/Pq7x4LQs/IMG-2796.jpg",
     prepTime: 30, cookTime: 40, baseServings: 4,
     color: "#C4956A", rating: 5,
-    tags: ["American", "Southern", "Comfort Food"], favorite: false,
+    tags: ["American", "Southern", "Comfort Food"], favorite: true,
     notes: "Requires 24 hours advance preparation for the buttermilk marinade.",
     components: [
       {
@@ -78,16 +69,16 @@ export const SEED_RECIPES = [
         yieldAmt: "", yieldUnit: "",
         notes: "The master recipe — frying the chicken and making the pan gravy.",
         ingredients: [
-          { id: "i1c1",  type: "ingredient", amount: 0.5,  unit: "cup",    name: "corn oil" },
-          { id: "i1c2",  type: "ingredient", amount: 0.5,  unit: "cup",    name: "pork lard" },
-          { id: "i1c3",  type: "recipe",     amount: 1,    unit: "recipe",  recipeId: null, recipeName: "Buttermilk-Marinated Frying Chicken" },
-          { id: "i1c4",  type: "ingredient", amount: 1,    unit: "pinch",  name: "Southern Seasoning for Poultry" },
-          { id: "i1c5",  type: "ingredient", amount: 1,    unit: "cup",    name: "flour for dredging" },
-          { id: "i1c6",  type: "ingredient", amount: 0.5,  unit: "cup",    name: "hot poultry stock" },
-          { id: "i1c7",  type: "ingredient", amount: 0.5,  unit: "cup",    name: "half-and-half" },
-          { id: "i1c8",  type: "ingredient", amount: 1,    unit: "pinch",  name: "kosher salt" },
-          { id: "i1c9",  type: "ingredient", amount: 1,    unit: "pinch",  name: "fresh-ground white pepper" },
-          { id: "i1c10", type: "recipe",     amount: 1,    unit: "recipe",  recipeId: null, recipeName: "Down-Home Green Beans" },
+          { id: "i1c1",  type: "ingredient", amount: 0.5,  unit: "cup",   name: "corn oil" },
+          { id: "i1c2",  type: "ingredient", amount: 0.5,  unit: "cup",   name: "pork lard" },
+          { id: "i1c3",  type: "recipe",     amount: 1,    unit: "recipe", recipeId: null, recipeName: "Buttermilk-Marinated Frying Chicken" },
+          { id: "i1c4",  type: "ingredient", amount: 1,    unit: "pinch", name: "Southern Seasoning for Poultry" },
+          { id: "i1c5",  type: "ingredient", amount: 1,    unit: "cup",   name: "flour for dredging" },
+          { id: "i1c6",  type: "ingredient", amount: 0.5,  unit: "cup",   name: "hot poultry stock" },
+          { id: "i1c7",  type: "ingredient", amount: 0.5,  unit: "cup",   name: "half-and-half" },
+          { id: "i1c8",  type: "ingredient", amount: 1,    unit: "pinch", name: "kosher salt" },
+          { id: "i1c9",  type: "ingredient", amount: 1,    unit: "pinch", name: "fresh-ground white pepper" },
+          { id: "i1c10", type: "recipe",     amount: 1,    unit: "recipe", recipeId: null, recipeName: "Down-Home Green Beans" },
         ],
         steps: [
           { id: "s1c1", text: "Preheat an oven to 200°F. Place a rack on a half-sheet tray.", substeps: [] },
@@ -125,22 +116,18 @@ export const SEED_RECIPES = [
         ],
       },
     ],
-    createdAt: Date.now() - 250,
+    createdAt: Date.now() - 6000,
   },
 
-  // ── Vermont Cheddar Cheese Soup ─────────────────────────────────────────────
-  // Single-component recipe. The "Master Recipe" in the book is just plating
-  // (ladle into cup, garnish) so the component IS the soup itself.
   {
     id: "2", name: "Vermont Cheddar Cheese Soup", category: "Soup",
+    image: "https://www.jocooks.com/wp-content/uploads/2020/03/bacon-and-beer-cheese-soup-1-17.jpg",
     prepTime: 15, cookTime: 30, baseServings: 4,
     color: "#F4A261", rating: 5, tags: ["Soup", "Cheddar", "Comfort Food"], favorite: false,
     notes: "Serve with New England Soda Bread. Ladle into a hot 10-fl.-oz. soup cup.",
     components: [
       {
-        id: "comp-2",
-        name: "",
-        yieldAmt: "1", yieldUnit: "qt.",
+        id: "comp-2", name: "", yieldAmt: "1", yieldUnit: "qt.",
         notes: "Do not let the soup exceed 160°F after adding cheese or it may separate.",
         ingredients: [
           { id: "i2-1",  type: "ingredient", amount: 3,    unit: "tbsp",  name: "butter" },
@@ -157,14 +144,8 @@ export const SEED_RECIPES = [
           { id: "i2-12", type: "ingredient", amount: 1,    unit: "cup",   name: "grated extra-sharp Vermont cheddar cheese" },
         ],
         steps: [
-          {
-            id: "s2-1", text: "Melt butter in a 1½-qt. saucepan and sweat the onion, celery, carrot, and apple until soft.",
-            substeps: [],
-          },
-          {
-            id: "s2-2", text: "Add the stock, potatoes, bay leaf, thyme, and a little salt. Cover and simmer about 20 minutes, until vegetables are very soft.",
-            substeps: [],
-          },
+          { id: "s2-1", text: "Melt butter in a 1½-qt. saucepan and sweat the onion, celery, carrot, and apple until soft.", substeps: [] },
+          { id: "s2-2", text: "Add the stock, potatoes, bay leaf, thyme, and a little salt. Cover and simmer about 20 minutes, until vegetables are very soft.", substeps: [] },
           {
             id: "s2-3", text: "Remove and discard the herbs and purée the soup.",
             substeps: [
@@ -172,10 +153,7 @@ export const SEED_RECIPES = [
               { id: "s2-3b", text: "If an immersion blender is not available: remove the herbs and transfer solids to a blender or food processor. Add a little of the liquid and purée the solids smooth. Return the purée to the pan and whisk in the remaining liquid." },
             ],
           },
-          {
-            id: "s2-4", text: "Return the soup to the simmer over low heat. Thin with additional stock if necessary.",
-            substeps: [],
-          },
+          { id: "s2-4", text: "Return the soup to the simmer over low heat. Thin with additional stock if necessary.", substeps: [] },
           {
             id: "s2-5", text: "Add a few drops of lemon juice, then whisk in the cheese until smooth. Correct the seasoning.",
             substeps: [
@@ -190,8 +168,9 @@ export const SEED_RECIPES = [
 
   {
     id: "3", name: "Lemon Tart", category: "Dessert",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTR78reW0fV55eayetAueXg6CsUfO9zzJRxoJLl0BuWa1f_HHsVZmCYsWQ&s=10",
     prepTime: 60, cookTime: 30, baseServings: 8,
-    color: "#F5C842", rating: 5, tags: ["French", "Citrus"], favorite: true,
+    color: "#F5C842", rating: 5, tags: ["French", "Citrus"], favorite: false,
     notes: "Chill the tart shell before filling for the crispest result.",
     components: [
       {
@@ -220,8 +199,9 @@ export const SEED_RECIPES = [
 
   {
     id: "4", name: "Victoria Sponge", category: "Baking",
+    image:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT0B6kHwkQGVzOAAE72qScn3_wXT9KeQy5pnODwCVw90w&s=10",
     prepTime: 20, cookTime: 25, baseServings: 10,
-    color: "#E8A87C", rating: 5, tags: ["British", "Classic"], favorite: true,
+    color: "#E8A87C", rating: 5, tags: ["British", "Classic"], favorite: false,
     notes: "Room temperature butter is key — take it out an hour early.",
     components: [
       {
@@ -249,6 +229,7 @@ export const SEED_RECIPES = [
 
   {
     id: "5", name: "Quiche Lorraine", category: "Main Dish",
+    image: "https://www.jessicagavin.com/wp-content/uploads/2021/03/quiche-lorraine-33-1200.jpg",
     prepTime: 20, cookTime: 40, baseServings: 6,
     color: "#C4956A", rating: 4, tags: ["French", "Savory"], favorite: false,
     notes: "Don't over-bake — the center should still have a slight wobble.",
@@ -273,11 +254,12 @@ export const SEED_RECIPES = [
         ],
       },
     ],
-    createdAt: Date.now() - 3000,
+    createdAt: Date.now() - 1000,
   },
 
   {
     id: "6", name: "Pancakes", category: "Breakfast",
+    image: "https://www.mostlyhomemademom.com/wp-content/uploads/2011/07/Homemade-Pancakes.jpg",
     prepTime: 10, cookTime: 15, baseServings: 4,
     color: "#D4956A", rating: 5, tags: ["American", "Quick"], favorite: true,
     notes: "Let the batter rest 5 min before cooking — makes them fluffier.",
@@ -306,7 +288,8 @@ export const SEED_RECIPES = [
   },
 
   {
-    id: "7", name: "Choc Chip Cookies", category: "Baking",
+    id: "7", name: "Chocolate Chip Cookies", category: "Baking",
+    image: "https://mojo.generalmills.com/api/public/content/_pLFRXFETcuXWg_Z0MhZPw_gmi_hi_res_jpeg.jpeg?v=693b292b&t=466b54bb264e48b199fc8e83ef1136b4",
     prepTime: 15, cookTime: 11, baseServings: 24,
     color: "#8B6047", rating: 5, tags: ["American", "Classic"], favorite: true,
     notes: "Chill the dough 30 min for thicker, chewier cookies.",
@@ -332,32 +315,98 @@ export const SEED_RECIPES = [
         ],
       },
     ],
-    createdAt: Date.now() - 1000,
+    createdAt: Date.now() - 3000,
   },
 
   {
-    id: "8", name: "Vegetable Kebabs", category: "Side Dish",
-    prepTime: 15, cookTime: 12, baseServings: 4,
-    color: "#6B9E5E", rating: 4, tags: ["Grilled", "Vegetarian"], favorite: false,
-    notes: "Soak wooden skewers 30 min to prevent burning.",
+    id: "8", name: "Shrimp and Tasso-Stuffed Mirliton", category: "Appetizer",
+    image:"https://cdn.phototourl.com/free/2026-06-30-eb1859ab-8f52-48d9-84d1-b134a4fff526.jpg",
+    prepTime: 45, cookTime: 30, baseServings: 4,
+    color: "#E86038", rating: 5,
+    tags: ["Creole", "Seafood", "Southern"], favorite: false,
+    notes: "Serve with Seafood Sauce Aurore and Fresh Tomato Sauce. Make sure the two sauces are the same consistency. Holding: refrigerate stuffed mirlitons in one layer in a freshly sanitized, covered container up to 3 days.",
     components: [
       {
-        id: "comp-8", name: "", yieldAmt: "", yieldUnit: "", notes: "",
+        id: "comp-8a",
+        name: "Shrimp and Tasso-Stuffed Mirliton",
+        yieldAmt: "4", yieldUnit: "(5-oz.) appetizer servings",
+        notes: "Holding: refrigerate in one layer in a freshly sanitized, covered container up to 3 days.",
         ingredients: [
-          { id: "i8-1", type: "ingredient", amount: 1, unit: "whole", name: "zucchini, chunked" },
-          { id: "i8-2", type: "ingredient", amount: 1, unit: "whole", name: "red bell pepper, chunked" },
-          { id: "i8-3", type: "ingredient", amount: 1, unit: "whole", name: "yellow bell pepper, chunked" },
-          { id: "i8-4", type: "ingredient", amount: 1, unit: "whole", name: "red onion, wedged" },
-          { id: "i8-5", type: "ingredient", amount: 1, unit: "cup",   name: "cherry tomatoes" },
-          { id: "i8-6", type: "ingredient", amount: 3, unit: "tbsp",  name: "olive oil" },
-          { id: "i8-7", type: "ingredient", amount: 2, unit: "tsp",   name: "Italian seasoning" },
-          { id: "i8-8", type: "ingredient", amount: 1, unit: "pinch", name: "salt & pepper" },
+          { id: "i8a1",  type: "ingredient", amount: 2,    unit: "whole", name: "small mirlitons" },
+          { id: "i8a2",  type: "ingredient", amount: 1,    unit: "tbsp",  name: "butter" },
+          { id: "i8a3",  type: "ingredient", amount: 0.33, unit: "cup",   name: "medium-chopped red bell pepper" },
+          { id: "i8a4",  type: "ingredient", amount: 0.25, unit: "cup",   name: "fine-chopped tasso ham" },
+          { id: "i8a5",  type: "ingredient", amount: 1,    unit: "pinch", name: "kosher salt" },
+          { id: "i8a6",  type: "ingredient", amount: 0.25, unit: "cup",   name: "fine-chopped scallion" },
+          { id: "i8a7",  type: "ingredient", amount: 0.5,  unit: "cup",   name: "heavy cream" },
+          { id: "i8a8",  type: "ingredient", amount: 1,    unit: "cup",   name: "Butter-Toasted Bread Crumbs" },
+          { id: "i8a9",  type: "ingredient", amount: 6,    unit: "oz",    name: "coarse-chopped Creole Poached Gulf Shrimp" },
+          { id: "i8a10", type: "ingredient", amount: 1,    unit: "tbsp",  name: "minced flat-leaf parsley" },
+          { id: "i8a11", type: "ingredient", amount: 1,    unit: "pinch", name: "fresh-ground white pepper" },
+          { id: "i8a12", type: "ingredient", amount: 0.5,  unit: "whole", name: "egg, beaten" },
         ],
         steps: [
-          { id: "s8-1", text: "Toss vegetables with oil, seasoning, salt, and pepper.", substeps: [] },
-          { id: "s8-2", text: "Thread onto soaked wooden skewers.", substeps: [] },
-          { id: "s8-3", text: "Grill over medium-high heat 10–12 min, turning.", substeps: [] },
-          { id: "s8-4", text: "Serve with tzatziki or hummus.", substeps: [] },
+          {
+            id: "s8a1", text: "Cook and fabricate the mirlitons.",
+            substeps: [
+              { id: "s8a1a", text: "Cut the mirlitons in half lengthwise through the narrow width so that they form a deep cup when hollowed." },
+              { id: "s8a1b", text: "Place the mirlitons in a steamer pan, cut side down. Steam until tender (about 5 minutes in a pressure steamer, about 15 minutes in a stovetop steamer)." },
+              { id: "s8a1c", text: "Cool the mirlitons to room temperature." },
+              { id: "s8a1d", text: "Remove the seeds from the mirliton halves and discard." },
+              { id: "s8a1e", text: "Hollow out the mirlitons, leaving an even 3/8\" shell. If necessary, cut a slice off the bottoms so that they sit upright on a flat surface." },
+              { id: "s8a1f", text: "Squeeze the scooped-out mirliton flesh between paper towels to dry it, and then chop the flesh fine." },
+            ],
+          },
+          {
+            id: "s8a2", text: "Make the stuffing.",
+            substeps: [
+              { id: "s8a2a", text: "Heat the butter in a 10\" nonstick sauté pan, add the red bell pepper and ham, and sauté over low heat about 1 minute, until softened." },
+              { id: "s8a2b", text: "Add the mirliton flesh and a little salt, increase the heat to medium, and sauté until dry." },
+              { id: "s8a2c", text: "Add the scallion and cream, bring to the boil, and reduce to nappé consistency." },
+              { id: "s8a2d", text: "Cool the reduction to room temperature." },
+              { id: "s8a2e", text: "Stir the Butter-Toasted Bread Crumbs, shrimp, and parsley into the reduction." },
+              { id: "s8a2f", text: "Correct the salt and season with pepper." },
+              { id: "s8a2g", text: "Mix in enough egg to bind the stuffing." },
+            ],
+          },
+          {
+            id: "s8a3", text: "Blot dry the inside of the mirliton cups and pack the stuffing into them, pressing gently to firm it. Smooth the tops into rounded mounds.",
+            substeps: [],
+          },
+        ],
+      },
+      {
+        id: "comp-8b",
+        name: "Service Turnout",
+        yieldAmt: "1", yieldUnit: "(5-oz.) appetizer serving",
+        notes: "Make sure the Seafood Sauce Aurore and Fresh Tomato Sauce are the same consistency.",
+        ingredients: [
+          { id: "i8b1", type: "ingredient", amount: 1, unit: "tbsp",  name: "melted butter" },
+          { id: "i8b2", type: "recipe",     amount: 1, unit: "recipe", recipeId: null, recipeName: "Shrimp and Tasso-Stuffed Mirliton" },
+          { id: "i8b3", type: "ingredient", amount: 4, unit: "oz",    name: "Seafood Sauce Aurore" },
+          { id: "i8b4", type: "ingredient", amount: 1, unit: "whole", name: "Creole Poached Gulf Shrimp" },
+          { id: "i8b5", type: "ingredient", amount: 2, unit: "tbsp",  name: "smooth Fresh Tomato Sauce, in squeeze bottle" },
+        ],
+        steps: [
+          {
+            id: "s8b1", text: "Bake the Shrimp and Tasso-Stuffed Mirliton.",
+            substeps: [
+              { id: "s8b1a", text: "Brush a sizzle pan with half of the melted butter." },
+              { id: "s8b1b", text: "Place the mirliton on the pan and brush the top with the remaining butter." },
+              { id: "s8b1c", text: "Bake in a 400°F oven 15 minutes, until heated through and browned on top." },
+            ],
+          },
+          { id: "s8b2", text: "Ladle the Seafood Sauce Aurore into a small sauté pan, add a little water, and reheat it.", substeps: [] },
+          {
+            id: "s8b3", text: "Plate the dish.",
+            substeps: [
+              { id: "s8b3a", text: "Spoon the Seafood Sauce Aurore onto a hot 10\" plate." },
+              { id: "s8b3b", text: "Squeeze evenly-spaced dots of Fresh Tomato Sauce on the Sauce Aurore about 1/2\" in from the edge of the plate well." },
+              { id: "s8b3c", text: "Drag the tip of a small knife or toothpick through the dots to create a \"string of hearts\" pattern." },
+              { id: "s8b3d", text: "Place the mirliton in the center of the plate." },
+              { id: "s8b3e", text: "Press the shrimp into the top of the mirliton." },
+            ],
+          },
         ],
       },
     ],

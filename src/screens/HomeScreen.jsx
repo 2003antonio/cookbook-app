@@ -14,7 +14,13 @@ export default function HomeScreen({
   const [favoritePickerOpen, setFavoritePickerOpen] = useState(false);
 
   const favorites  = recipes.filter(r => r.favorite);
-  const recent     = recipes.slice(0, 6);
+  // "Recent" = most recently touched. A recipe surfaces here when it's created
+  // and saved (createdAt) or edited and saved (updatedAt) — whichever is later
+  // wins, so editing an old recipe bumps it back to the front. Sorting by this
+  // (rather than trusting array order) keeps the logic true regardless of how
+  // the underlying list is ordered (seed order, Supabase created_at desc, etc.).
+  const recencyOf  = r => Math.max(r.updatedAt || 0, r.createdAt || 0);
+  const recent     = [...recipes].sort((a, b) => recencyOf(b) - recencyOf(a)).slice(0, 6);
   const totalTime  = recipes.reduce((s, r) => s + (r.prepTime || 0) + (r.cookTime || 0), 0);
   const avgTime    = recipes.length ? `${Math.round(totalTime / recipes.length)}m` : "—";
 
