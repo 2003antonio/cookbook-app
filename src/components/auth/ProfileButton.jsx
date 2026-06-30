@@ -8,7 +8,7 @@ const avatarBaseStyle = {
   width: AVATAR_SIZE,
   height: AVATAR_SIZE,
   borderRadius: "50%",
-  border: "2px solid white",
+  border: "2px solid var(--card-bg)",
   boxShadow: "var(--shadow-sm)",
   flexShrink: 0,
 };
@@ -41,10 +41,10 @@ export default function ProfileButton({ session, loading, theme, toggleTheme }) 
         <button
           onClick={() => setAuthOpen(true)}
           style={{
-            background: "white", border: "1px solid var(--border)",
+            background: "var(--fire)", border: "1px solid var(--fire)",
             borderRadius: "var(--r-full)", padding: "9px 16px",
             fontFamily: "var(--font-body)", fontSize: 12.5, fontWeight: 600,
-            color: "var(--ink)", boxShadow: "var(--shadow-sm)", flexShrink: 0,
+            color: "white", boxShadow: "var(--shadow-sm)", flexShrink: 0,
           }}
         >
           Log in / Sign up
@@ -122,7 +122,7 @@ export default function ProfileButton({ session, loading, theme, toggleTheme }) 
             onClick={() => { setMenuOpen(false); supabase.auth.signOut(); }}
             style={{
               width: "100%", textAlign: "left", padding: "11px 14px",
-              fontFamily: "var(--font-body)", fontSize: 13.5, fontWeight: 500, color: "#B42318",
+              fontFamily: "var(--font-body)", fontSize: 13.5, fontWeight: 500, color: "#DC2626",
             }}
           >
             Sign out

@@ -133,9 +133,9 @@ export default function AuthModal({ onClose }) {
         {mode === "signup-done" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{
-              background: "rgba(21,128,61,0.08)", border: "1px solid rgba(21,128,61,0.2)",
+              background: "var(--success-bg)", border: "1px solid var(--success)",
               borderRadius: "var(--r-sm)", padding: "14px 12px",
-              fontSize: 13.5, color: "#15803D", lineHeight: 1.6,
+              fontSize: 13.5, color: "var(--success)", lineHeight: 1.6,
             }}>
               ✉️ We've sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then sign in.
             </div>
@@ -236,13 +236,13 @@ const styles = {
     borderRadius: "var(--r-sm)", padding: "10px 12px",
   },
   error: {
-    fontSize: 13, color: "#B42318",
-    background: "rgba(180,35,24,0.08)", border: "1px solid rgba(180,35,24,0.2)",
+    fontSize: 13, color: "var(--error)",
+    background: "var(--error-bg)", border: "1px solid var(--error)",
     borderRadius: "var(--r-sm)", padding: "8px 10px", lineHeight: 1.5,
   },
   message: {
-    fontSize: 13, color: "#15803D",
-    background: "rgba(21,128,61,0.08)", border: "1px solid rgba(21,128,61,0.2)",
+    fontSize: 13, color: "var(--success)",
+    background: "var(--success-bg)", border: "1px solid var(--success)",
     borderRadius: "var(--r-sm)", padding: "8px 10px", lineHeight: 1.5,
   },
   submit: {

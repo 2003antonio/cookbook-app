@@ -50,7 +50,11 @@ export const FavoriteCard = memo(function FavoriteCard({ recipe, active, onSelec
         <span style={{
           position: "relative", zIndex: 1,
           fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em",
-          background: "rgba(255,255,255,0.22)", backdropFilter: "blur(4px)",
+          // No backdrop-filter here: blur forces a per-frame repaint of every
+          // visible card (instead of a compositor-only transform), which is
+          // what was capping carousel drag at ~30fps. Plain translucent bg
+          // looks nearly identical and stays on the GPU compositor fast path.
+          background: "rgba(0,0,0,0.32)",
           color: "white", padding: "3px 8px", borderRadius: 999,
         }}>{recipe.category}</span>
       </div>
