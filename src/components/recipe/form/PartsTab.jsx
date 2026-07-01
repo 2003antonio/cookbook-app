@@ -94,8 +94,8 @@ export function PartsTab({
                     style={{ fontSize: 10, color: "var(--ink-faint)", opacity: idx === parts.length - 1 ? 0.25 : 1, lineHeight: 1 }}>▼</button>
                 </div>
 
-                <button onClick={() => removePart(part.id)}
-                  style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", color: "var(--ink-soft)", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                <button onClick={() => removePart(part.id)} disabled={parts.length <= 2}
+                  style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", color: "var(--ink-soft)", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: parts.length <= 2 ? 0.3 : 1 }}>✕</button>
               </div>
 
               <input

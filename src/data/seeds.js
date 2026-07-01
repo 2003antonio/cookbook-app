@@ -71,14 +71,12 @@ export const SEED_RECIPES = [
         ingredients: [
           { id: "i1c1",  type: "ingredient", amount: 0.5,  unit: "cup",   name: "corn oil" },
           { id: "i1c2",  type: "ingredient", amount: 0.5,  unit: "cup",   name: "pork lard" },
-          { id: "i1c3",  type: "recipe",     amount: 1,    unit: "recipe", recipeId: null, recipeName: "Buttermilk-Marinated Frying Chicken" },
           { id: "i1c4",  type: "ingredient", amount: 1,    unit: "pinch", name: "Southern Seasoning for Poultry" },
           { id: "i1c5",  type: "ingredient", amount: 1,    unit: "cup",   name: "flour for dredging" },
           { id: "i1c6",  type: "ingredient", amount: 0.5,  unit: "cup",   name: "hot poultry stock" },
           { id: "i1c7",  type: "ingredient", amount: 0.5,  unit: "cup",   name: "half-and-half" },
           { id: "i1c8",  type: "ingredient", amount: 1,    unit: "pinch", name: "kosher salt" },
           { id: "i1c9",  type: "ingredient", amount: 1,    unit: "pinch", name: "fresh-ground white pepper" },
-          { id: "i1c10", type: "recipe",     amount: 1,    unit: "recipe", recipeId: null, recipeName: "Down-Home Green Beans" },
         ],
         steps: [
           { id: "s1c1", text: "Preheat an oven to 200°F. Place a rack on a half-sheet tray.", substeps: [] },
@@ -382,7 +380,6 @@ export const SEED_RECIPES = [
         notes: "Make sure the Seafood Sauce Aurore and Fresh Tomato Sauce are the same consistency.",
         ingredients: [
           { id: "i8b1", type: "ingredient", amount: 1, unit: "tbsp",  name: "melted butter" },
-          { id: "i8b2", type: "recipe",     amount: 1, unit: "recipe", recipeId: null, recipeName: "Shrimp and Tasso-Stuffed Mirliton" },
           { id: "i8b3", type: "ingredient", amount: 4, unit: "oz",    name: "Seafood Sauce Aurore" },
           { id: "i8b4", type: "ingredient", amount: 1, unit: "whole", name: "Creole Poached Gulf Shrimp" },
           { id: "i8b5", type: "ingredient", amount: 2, unit: "tbsp",  name: "smooth Fresh Tomato Sauce, in squeeze bottle" },

@@ -118,7 +118,7 @@ export function useShoppingList(userId) {
 
   const addFromRecipe = useCallback((recipe) => {
     const newItems = allIngredients(recipe)
-      .filter(ing => ing.type === "ingredient" ? ing.name.trim() : ing.recipeName.trim())
+      .filter(ing => ing.name.trim())
       .map(ing => ({
         id:         crypto.randomUUID(),
         text:       formatIngredient(ing),

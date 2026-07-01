@@ -3,6 +3,7 @@ import { StarRating }  from "../ui/StarRating";
 import { StepList }    from "../ui/StepList";
 import { showToast }   from "../ui/ToastHost";
 import { IconButton }  from "../ui/IconButton";
+import { useSlideDirection } from "../../hooks/useSlideDirection";
 import { formatTime, formatIngredient } from "../../models/recipe";
 
 // ── Servings stepper ──────────────────────────────────────────────────────────
@@ -75,53 +76,7 @@ function InfoRow({ recipe, currentServings, onServingsChange, onServingsReset, s
 }
 
 // ── Single ingredient row ─────────────────────────────────────────────────────
-function IngredientRow({ ing, multiplier, checked, onToggle, onNavigateRecipe }) {
-  const isRecipeLink = ing.type === "recipe";
-
-  // Recipe-link ingredients render inline like a regular row with underlined name
-  if (isRecipeLink) {
-    const amt = ing.amount && ing.amount !== 1 ? `${ing.amount} × ` : "";
-    return (
-      <li
-        onClick={() => onToggle(ing.id)}
-        style={{
-          display: "flex", alignItems: "center", gap: 12,
-          padding: "9px 10px", borderRadius: "var(--r-sm)",
-          cursor: "pointer", transition: "background 0.12s",
-          background: checked ? "var(--surface)" : "transparent",
-          userSelect: "none",
-        }}
-        onMouseEnter={e => { if (!checked) e.currentTarget.style.background = "var(--surface)"; }}
-        onMouseLeave={e => { if (!checked) e.currentTarget.style.background = "transparent"; }}
-      >
-        <div style={{
-          width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-          border: checked ? "none" : "2px solid var(--border)",
-          background: checked ? "var(--fire)" : "transparent",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "all 0.15s ease",
-          boxShadow: checked ? "0 1px 4px rgba(232,98,26,0.3)" : "none",
-        }}>
-          {checked && (
-            <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
-              <path d="M1 3.5L4 6.5L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
-        </div>
-        <span style={{
-          fontSize: 13.5, flex: 1,
-          color: checked ? "var(--ink-faint)" : "var(--fire)",
-          lineHeight: 1.4,
-          textDecoration: checked ? "line-through" : "underline",
-          textUnderlineOffset: 3,
-          transition: "color 0.15s",
-        }}>
-          {amt}{ing.recipeName}
-        </span>
-      </li>
-    );
-  }
-
+function IngredientRow({ ing, multiplier, checked, onToggle }) {
   return (
     <li
       onClick={() => onToggle(ing.id)}
@@ -164,7 +119,7 @@ function IngredientRow({ ing, multiplier, checked, onToggle, onNavigateRecipe })
 
 // ── Ingredient checklist — part-aware ─────────────────────────────────────────
 // Single part: renders flat. Multi-part: renders each part as a labelled section.
-function IngredientChecklist({ parts, multiplier, checkedMap, onToggle, onClearAll, onNavigateRecipe }) {
+function IngredientChecklist({ parts, multiplier, checkedMap, onToggle, onClearAll }) {
   const allIngs    = parts.flatMap(p => p.ingredients || []);
   const checkedCount = allIngs.filter(ing => checkedMap[ing.id]).length;
   const totalCount   = allIngs.length;
@@ -185,7 +140,6 @@ function IngredientChecklist({ parts, multiplier, checkedMap, onToggle, onClearA
             multiplier={multiplier}
             checked={!!checkedMap[ing.id]}
             onToggle={onToggle}
-            onNavigateRecipe={onNavigateRecipe}
           />
         ))}
       </ul>
@@ -295,7 +249,7 @@ function PartSteps({ parts }) {
 }
 
 // ── RecipeDetail ──────────────────────────────────────────────────────────────
-export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAddToShopping, onNavigateRecipe, recipes }) {
+export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavorite, onAddToShopping }) {
   const [activeTab,          setActiveTab]          = useState("ingredients");
   const [servings,           setServings]            = useState(null);
   const [confirmDelete,      setConfirmDelete]       = useState(false);
@@ -311,6 +265,11 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
     setCheckedIngredients({});
   }
 
+  // Computed defensively (recipe can be null here) so this hook call stays
+  // unconditional — it has to run before the early return below.
+  const tabs = recipe ? ["ingredients", "steps", ...(recipe.notes ? ["notes"] : [])] : ["ingredients"];
+  const { direction: tabSlideDir, hasSwitched: hasTabSwitched } = useSlideDirection(activeTab, tabs);
+
   if (!recipe) return null;
 
   const parts           = recipe.parts || recipe.components || [];
@@ -321,11 +280,6 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
   const handleClose          = () => { setServings(null); setConfirmDelete(false); setCheckedIngredients({}); onClose(); };
   const handleAddToShopping  = () => { onAddToShopping(recipe); setAddedToast(true); setTimeout(() => setAddedToast(false), 2000); };
 
-  const tabs = [
-    "ingredients",
-    "steps",
-    ...(recipe.notes ? ["notes"] : []),
-  ];
   const noteLines = recipe.notes
     ? recipe.notes.split("\n").map(l => l.trim()).filter(Boolean)
     : [];
@@ -392,29 +346,33 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
         ))}
       </div>
 
-      {/* Tab content */}
+      {/* Tab content — animated sweep, keyed by activeTab so it replays on every switch */}
       <div style={{ padding: 20, flex: 1, overflowY: "auto" }}>
-        {activeTab === "ingredients" && (
-          <IngredientChecklist
-            parts={parts}
-            multiplier={multiplier}
-            checkedMap={checkedIngredients}
-            onToggle={id => setCheckedIngredients(prev => ({ ...prev, [id]: !prev[id] }))}
-            onClearAll={() => setCheckedIngredients({})}
-            onNavigateRecipe={onNavigateRecipe}
-          />
-        )}
-        {activeTab === "steps" && <PartSteps parts={parts} />}
-        {activeTab === "notes" && (
-          <ul style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {noteLines.map((line, i) => (
-              <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13.5, color: "var(--ink)", lineHeight: 1.6 }}>
-                <span style={{ marginTop: 6, width: 6, height: 6, borderRadius: "50%", background: "var(--fire)", flexShrink: 0 }} />
-                {line}
-              </li>
-            ))}
-          </ul>
-        )}
+        <div
+          key={activeTab}
+          className={hasTabSwitched ? `tab-panel tab-panel--${tabSlideDir >= 0 ? "next" : "prev"}` : undefined}
+        >
+          {activeTab === "ingredients" && (
+            <IngredientChecklist
+              parts={parts}
+              multiplier={multiplier}
+              checkedMap={checkedIngredients}
+              onToggle={id => setCheckedIngredients(prev => ({ ...prev, [id]: !prev[id] }))}
+              onClearAll={() => setCheckedIngredients({})}
+            />
+          )}
+          {activeTab === "steps" && <PartSteps parts={parts} />}
+          {activeTab === "notes" && (
+            <ul style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {noteLines.map((line, i) => (
+                <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13.5, color: "var(--ink)", lineHeight: 1.6 }}>
+                  <span style={{ marginTop: 6, width: 6, height: 6, borderRadius: "50%", background: "var(--fire)", flexShrink: 0 }} />
+                  {line}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* Footer */}

@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { showToast }     from "../ui/ToastHost";
-import { ConfirmDialog } from "../ui/ConfirmDialog";
-import { IconButton }    from "../ui/IconButton";
-import { ModalOverlay }  from "../ui/ModalOverlay";
+import { showToast }        from "../ui/ToastHost";
+import { ConfirmDialog }    from "../ui/ConfirmDialog";
+import { IconButton }       from "../ui/IconButton";
+import { ModalOverlay }     from "../ui/ModalOverlay";
+import { useSlideDirection } from "../../hooks/useSlideDirection";
 import { DetailsTab }     from "./form/DetailsTab";
 import { PartsTab }       from "./form/PartsTab";
 import { IngredientsTab } from "./form/IngredientsTab";
@@ -37,7 +38,7 @@ function blankForm() {
 // ── RecipeForm ────────────────────────────────────────────────────────────────
 // Owns all form state and the tab-routing chrome (header, tab bar, footer
 // nav/save/delete); the per-tab body content lives in ./form/*Tab.jsx.
-export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], isEntering = false }) {
+export function RecipeForm({ initial, onSave, onCancel, onDelete, onBackToChooser, recipes = [], isEntering = false }) {
   const [form, setForm] = useState(() => {
     if (!initial) return blankForm();
     const normalized = normalizeRecipe(initial);
@@ -61,6 +62,7 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
   const [iconPickerFor, setIconPickerFor] = useState(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [showExitConfirm,   setShowExitConfirm]   = useState(false);
+  const [exitTarget,        setExitTarget]        = useState("cancel"); // "cancel" | "back"
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [imageBusy,  setImageBusy]  = useState(false);
   const [imageError, setImageError] = useState("");
@@ -193,12 +195,26 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
   }, [iconPickerFor]);
 
   // ── Exit / discard / delete ──────────────────────────────────────────────────
+  const isDirty = () => JSON.stringify(form) !== initialSnapshotRef.current;
+
   const attemptCancel = () => {
-    if (JSON.stringify(form) !== initialSnapshotRef.current) setShowExitConfirm(true);
+    setExitTarget("cancel");
+    if (isDirty()) setShowExitConfirm(true);
     else onCancel();
   };
 
-  const exitDialog = isExistingRecipe
+  // Only offered for a brand-new recipe (onBackToChooser is only passed in
+  // that case) — lets the user reconsider Simple vs. Multi-Part without fully
+  // exiting the create flow and re-opening it from scratch.
+  const attemptBackToChooser = () => {
+    setExitTarget("back");
+    if (isDirty()) setShowExitConfirm(true);
+    else onBackToChooser();
+  };
+
+  const exitDialog = exitTarget === "back"
+    ? { icon: "↩️", iconBg: "#DBEAFE", title: "Switch recipe type?",   subtitle: "Your progress on this recipe will be lost.", cancelLabel: "Stay Here", confirmLabel: "Switch Type" }
+    : isExistingRecipe
     ? { icon: "⚠️", iconBg: "#FEF3C7", title: "Discard your changes?", subtitle: "All unsaved changes will be lost.", cancelLabel: "No, Go Back", confirmLabel: "Yes, Discard" }
     : { icon: "✕",  iconBg: "#FEE2E2", title: "Exit without saving?",  subtitle: "All unsaved changes will be lost.", cancelLabel: "Stay Here",   confirmLabel: "Exit" };
 
@@ -214,8 +230,8 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
     if (!form.name.trim()) { setErrors({ name: "Name is required" }); setActiveTab("details"); return; }
 
     const cleanIngredients = (ings) => ings
-      .filter(i => i.type === "recipe" ? i.recipeName?.trim() : i.name.trim())
-      .map(i => i.type === "recipe" ? i : { ...i, amount: parseAmount(i.amount) });
+      .filter(i => i.name.trim())
+      .map(i => ({ ...i, amount: parseAmount(i.amount) }));
     const cleanSteps = (steps) => steps
       .map(s => ({
         id:       s.id,
@@ -257,7 +273,7 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
   });
 
   // ── Tab counts / labels ──────────────────────────────────────────────────────
-  const countIngs  = (ings)  => ings.filter(i => (i.type === "recipe" ? i.recipeName : i.name)?.trim()).length;
+  const countIngs  = (ings)  => ings.filter(i => i.name?.trim()).length;
   const countSteps = (steps) => steps.reduce((acc, s) => acc + (s.text.trim() ? 1 : 0) + s.substeps.filter(sub => sub.text.trim()).length, 0);
   const totalIngCount  = form.parts.reduce((n, p) => n + countIngs(p.ingredients), 0);
   const totalStepCount = form.parts.reduce((n, p) => n + countSteps(p.steps), 0);
@@ -275,16 +291,7 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
   const titleText = `${isExistingRecipe ? "Edit" : "New"}${multiPart ? " Multi-Part" : ""} Recipe`;
 
   // Tab-switch animation direction: +1 when moving to a later tab, −1 to an earlier one.
-  // hasTabSwitched starts false so the initial render has no slide animation.
-  // Both refs are updated during render (not in an effect) so the class is ready
-  // on the same render that the tab change happens.
-  const prevTabIdxRef  = useRef(currentTabIdx);
-  const hasTabSwitched = useRef(false);
-  const slideDir = currentTabIdx >= prevTabIdxRef.current ? 1 : -1;
-  if (prevTabIdxRef.current !== currentTabIdx) {
-    hasTabSwitched.current  = true;
-    prevTabIdxRef.current   = currentTabIdx;
-  }
+  const { direction: slideDir, hasSwitched: hasTabSwitched } = useSlideDirection(activeTab, formTabs);
 
   return (
     // Backdrop is rendered by App.js and stays alive across the whole
@@ -344,7 +351,7 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
           {/* Animated tab panel — keyed by activeTab so the sweep-in replays on every switch */}
           <div
             key={activeTab}
-            className={hasTabSwitched.current ? `tab-panel tab-panel--${slideDir >= 0 ? "next" : "prev"}` : undefined}
+            className={hasTabSwitched ? `tab-panel tab-panel--${slideDir >= 0 ? "next" : "prev"}` : undefined}
             style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14 }}
           >
 
@@ -404,11 +411,17 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
           padding: "12px 16px", display: "flex", alignItems: "center", gap: 6,
         }}>
           <div style={{ flex: 1, display: "flex", justifyContent: "flex-start" }}>
-            {isExistingRecipe && (
+            {isExistingRecipe ? (
               <button onClick={() => setShowDeleteConfirm(true)} style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-faint)", whiteSpace: "nowrap", transition: "color 0.15s" }}
                 onMouseEnter={e => e.currentTarget.style.color = "#C0392B"}
                 onMouseLeave={e => e.currentTarget.style.color = "var(--ink-faint)"}>
                 Delete
+              </button>
+            ) : onBackToChooser && (
+              <button onClick={attemptBackToChooser} style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-faint)", whiteSpace: "nowrap", transition: "color 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.color = "var(--ink-soft)"}
+                onMouseLeave={e => e.currentTarget.style.color = "var(--ink-faint)"}>
+                ← Recipe type
               </button>
             )}
           </div>
@@ -434,7 +447,7 @@ export function RecipeForm({ initial, onSave, onCancel, onDelete, recipes = [], 
         <ConfirmDialog
           {...exitDialog}
           onCancel={() => setShowExitConfirm(false)}
-          onConfirm={() => { setShowExitConfirm(false); onCancel(); }}
+          onConfirm={() => { setShowExitConfirm(false); (exitTarget === "back" ? onBackToChooser : onCancel)(); }}
         />
       )}
 

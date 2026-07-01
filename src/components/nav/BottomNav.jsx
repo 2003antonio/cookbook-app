@@ -8,6 +8,7 @@ export function BottomNav({ active, onChange, shoppingCount }) {
   const tabs = NAV_TABS.map(tab =>
     tab.id === "shopping" ? { ...tab, badge: shoppingCount } : tab
   );
+  const activeIdx = NAV_TABS.findIndex(t => t.id === active);
 
   return (
     <nav style={{
@@ -19,6 +20,20 @@ export function BottomNav({ active, onChange, shoppingCount }) {
       zIndex: 80,
       paddingBottom: "env(safe-area-inset-bottom)",
     }}>
+      {/* Sliding active-tab highlight — one persistent bar that glides between
+          tabs (transform only, compositor-friendly) instead of popping in
+          fresh under whichever button is active. */}
+      <div style={{
+        position: "absolute", top: 0, left: 0,
+        width: `${100 / NAV_TABS.length}%`, height: 2.5,
+        display: "flex", justifyContent: "center",
+        transform: `translateX(${activeIdx * 100}%)`,
+        transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+        willChange: "transform",
+      }}>
+        <div style={{ width: "50%", height: "100%", background: "var(--fire)", borderRadius: "0 0 3px 3px" }} />
+      </div>
+
       {tabs.map(tab => (
         <button
           key={tab.id}
@@ -30,12 +45,6 @@ export function BottomNav({ active, onChange, shoppingCount }) {
             transition: "color 0.15s", position: "relative",
           }}
         >
-          {active === tab.id && (
-            <div style={{
-              position: "absolute", top: 0, left: "25%", right: "25%",
-              height: 2.5, background: "var(--fire)", borderRadius: "0 0 3px 3px",
-            }} />
-          )}
           <div style={{ position: "relative" }}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>{tab.icon}</span>
             {tab.badge > 0 && (

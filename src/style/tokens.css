@@ -132,4 +132,29 @@ img { display: block; max-width: 100%; }
 
 @media (prefers-reduced-motion: reduce) {
   .tab-panel { animation: none; }
+  .screen-enter, .screen-exit { animation: none; }
 }
+
+/* ── Bottom-nav screen switch ── */
+/* Unlike .tab-panel (a small panel inside an already-visible modal), this
+   wraps an entire screen. A lone slide-in isn't enough here — the outgoing
+   screen would already be gone, so as the incoming one eases into place from
+   an offset, the gap behind it exposes bare app background before it arrives.
+   Instead both screens animate together: outgoing pushes fully off in the
+   direction of travel while incoming slides in from the opposite edge, so
+   between them real content always spans the full width, at every instant. */
+.screen-enter, .screen-exit {
+  animation-duration: 0.25s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: both;
+  will-change: transform;
+}
+.screen-enter--next { animation-name: screenEnterNext; }
+.screen-enter--prev { animation-name: screenEnterPrev; }
+.screen-exit--next  { animation-name: screenExitNext; }
+.screen-exit--prev  { animation-name: screenExitPrev; }
+
+@keyframes screenEnterNext { from { transform: translate3d(100%, 0, 0);  } to { transform: translate3d(0, 0, 0); } }
+@keyframes screenEnterPrev { from { transform: translate3d(-100%, 0, 0); } to { transform: translate3d(0, 0, 0); } }
+@keyframes screenExitNext  { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-100%, 0, 0); } }
+@keyframes screenExitPrev  { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(100%, 0, 0);  } }

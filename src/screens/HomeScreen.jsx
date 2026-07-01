@@ -122,14 +122,13 @@ export default function HomeScreen({
         )}
       </div>
 
-      {/* Read-only preview sheet */}
-      {previewRecipe && (
-        <RecipePreviewSheet
-          recipe={previewRecipe}
-          onClose={() => setPreviewRecipe(null)}
-          onAddToShopping={onAddToShopping}
-        />
-      )}
+      {/* Read-only preview sheet — always mounted (like DetailSheet) so opening
+          it is a real transition, not an instant appearance. See RecipePreviewSheet. */}
+      <RecipePreviewSheet
+        recipe={previewRecipe}
+        onClose={() => setPreviewRecipe(null)}
+        onAddToShopping={onAddToShopping}
+      />
 
       {/* Favorite picker */}
       {favoritePickerOpen && (

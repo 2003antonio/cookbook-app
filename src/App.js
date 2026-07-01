@@ -6,12 +6,70 @@ import { CARD_COLORS, newPart } from "./models/recipe";
 import { RecipeForm }             from "./components/recipe/RecipeForm";
 import { RecipeTypeChooser }      from "./components/recipe/RecipeTypeChooser";
 import { RecipeTransitionLoader } from "./components/recipe/RecipeTransitionLoader";
+import { DetailSheet }            from "./components/recipe/DetailSheet";
 import { ToastHost }       from "./components/ui/ToastHost";
 import { BottomNav }       from "./components/nav/BottomNav";
 import HomeScreen          from "./screens/HomeScreen";
 import RecipesScreen       from "./screens/RecipesScreen";
 import ShoppingScreen      from "./screens/ShoppingScreen";
 import "./style/tokens.css";
+
+const TAB_ORDER = ["home", "recipes", "shopping"];
+
+// ── AnimatedScreens ───────────────────────────────────────────────────────────
+// Cross-slides between bottom-nav screens: the outgoing screen keeps rendering
+// while it pushes fully off in the direction of travel, and the incoming
+// screen slides in from the opposite edge at the same time — both are real,
+// on-screen content the whole time, so the two always tile the full width
+// between them with no gap. (A single sliding screen alone would leave a gap
+// once its edge moves past the container's own edge, exposing the plain app
+// background underneath — that's the "bar" a lone slide-in produces.)
+//
+// Direction/exit-tracking is self-contained here (not lifted into App) and
+// guarded by "have I already recorded a result for this exact `tab` value" so
+// it stays correct under StrictMode's double-invoked render passes — the
+// second pass sees its own first pass's write and reuses the cached result
+// instead of re-deriving it from an already-bumped ref.
+//
+// This animates every tab switch, including the one triggered by opening a
+// recipe from Home's "Recent" row — DetailSheet lives outside this component
+// entirely now (see App's top-level <DetailSheet>), so its pull-up runs
+// independently on top and is never affected by (or fighting with) this
+// screen-push happening underneath it.
+function AnimatedScreens({ tab, renderScreen }) {
+  const [exiting, setExiting] = useState(null); // { tab, dir } while the old screen is still sliding out
+  const prevRef = useRef({ tab, dir: 1 });
+
+  if (prevRef.current.tab !== tab) {
+    const dir = TAB_ORDER.indexOf(tab) >= TAB_ORDER.indexOf(prevRef.current.tab) ? 1 : -1;
+    setExiting({ tab: prevRef.current.tab, dir });
+    prevRef.current = { tab, dir };
+  }
+
+  const screenStyle = { position: "absolute", inset: 0, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 };
+
+  return (
+    <div style={{ flex: 1, position: "relative", overflow: "hidden", minHeight: 0 }}>
+      {exiting && (
+        <div
+          key={`exit-${exiting.tab}`}
+          onAnimationEnd={() => setExiting(null)}
+          className={`screen-exit screen-exit--${exiting.dir >= 0 ? "next" : "prev"}`}
+          style={screenStyle}
+        >
+          {renderScreen(exiting.tab)}
+        </div>
+      )}
+      <div
+        key={`enter-${tab}`}
+        className={exiting ? `screen-enter screen-enter--${exiting.dir >= 0 ? "next" : "prev"}` : undefined}
+        style={screenStyle}
+      >
+        {renderScreen(tab)}
+      </div>
+    </div>
+  );
+}
 
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
@@ -126,6 +184,14 @@ export default function App() {
     hideBackdrop();
   };
 
+  // Back out of the form to the Simple/Multi-Part chooser without closing the
+  // whole create flow — the shared backdrop stays up the entire time.
+  const handleBackToChooser = () => {
+    setFormState(null);
+    setTransitionPhase("idle");
+    setShowTypeChooser(true);
+  };
+
   const handleDelete = (id) => {
     deleteRecipe(id);
     if (selectedRecipe?.id === id) setSelectedRecipe(null);
@@ -139,7 +205,9 @@ export default function App() {
   };
 
   // Jump straight to a specific recipe's detail sheet on the Recipes tab
-  // (used by Home's "Recent" row)
+  // (used by Home's "Recent" row). DetailSheet is always mounted (see the
+  // top-level <DetailSheet> below), so setting selectedRecipe here is a
+  // normal open transition regardless of which tab we're navigating from.
   const handleOpenRecipe = (recipe) => {
     setRecipesFilter("All");
     setSelectedRecipe(recipe);
@@ -148,56 +216,65 @@ export default function App() {
 
   const uncheckedCount = shoppingItems.filter(i => !i.checked).length;
 
+  // Returns the screen for an arbitrary tab id — needed by AnimatedScreens,
+  // which can render both the entering *and* exiting tab's screen at once.
+  const renderScreen = (t) => {
+    if (t === "home") return (
+      <HomeScreen
+        recipes={recipes}
+        onGoToRecipes={handleGoToRecipes}
+        onOpenRecipe={handleOpenRecipe}
+        onNewRecipe={openNewRecipeFlow}
+        onToggleFavorite={toggleFavorite}
+        onAddToShopping={addFromRecipe}
+        session={session}
+        authLoading={authLoading}
+        theme={theme}
+        toggleTheme={toggleTheme}
+      />
+    );
+    if (t === "recipes") return (
+      <RecipesScreen
+        recipes={recipes}
+        onSelectRecipe={setSelectedRecipe}
+        selectedRecipe={selectedRecipe}
+        onToggleFavorite={toggleFavorite}
+        onNewRecipe={openNewRecipeFlow}
+        initialFilter={recipesFilter}
+      />
+    );
+    if (t === "shopping") return (
+      <ShoppingScreen
+        items={shoppingItems}
+        onAdd={addItem}
+        onToggle={toggleItem}
+        onRemove={removeItem}
+        onClearChecked={clearChecked}
+        recipes={recipes}
+        onAddFromRecipe={addFromRecipe}
+      />
+    );
+    return null;
+  };
+
   return (
     <div style={{
       height: "100dvh", display: "flex", flexDirection: "column",
       background: "var(--paper)", overflow: "hidden", position: "relative",
     }}>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+      <AnimatedScreens tab={tab} renderScreen={renderScreen} />
 
-        {tab === "home" && (
-          <HomeScreen
-            recipes={recipes}
-            onGoToRecipes={handleGoToRecipes}
-            onOpenRecipe={handleOpenRecipe}
-            onNewRecipe={openNewRecipeFlow}
-            onToggleFavorite={toggleFavorite}
-            onAddToShopping={addFromRecipe}
-            session={session}
-            authLoading={authLoading}
-            theme={theme}
-            toggleTheme={toggleTheme}
-          />
-        )}
-
-        {tab === "recipes" && (
-          <RecipesScreen
-            recipes={recipes}
-            onSelectRecipe={setSelectedRecipe}
-            selectedRecipe={selectedRecipe}
-            onCloseDetail={() => setSelectedRecipe(null)}
-            onEdit={r => { showBackdrop(); setFormState(r); }}
-            onDelete={handleDelete}
-            onToggleFavorite={toggleFavorite}
-            onAddToShopping={addFromRecipe}
-            onNewRecipe={openNewRecipeFlow}
-            onNavigateRecipe={id => setSelectedRecipe(recipes.find(r => r.id === id) ?? null)}
-            initialFilter={recipesFilter}
-          />
-        )}
-
-        {tab === "shopping" && (
-          <ShoppingScreen
-            items={shoppingItems}
-            onAdd={addItem}
-            onToggle={toggleItem}
-            onRemove={removeItem}
-            onClearChecked={clearChecked}
-            recipes={recipes}
-            onAddFromRecipe={addFromRecipe}
-          />
-        )}
-      </div>
+      {/* Lives outside the animated screen tree on purpose — see AnimatedScreens'
+          comment. Always mounted so opening it is a real slide-up transition,
+          not an instant appearance (same reasoning as RecipePreviewSheet). */}
+      <DetailSheet
+        recipe={selectedRecipe}
+        onClose={() => setSelectedRecipe(null)}
+        onEdit={r => { showBackdrop(); setFormState(r); }}
+        onDelete={handleDelete}
+        onToggleFavorite={toggleFavorite}
+        onAddToShopping={addFromRecipe}
+      />
 
       <BottomNav
         active={tab}
@@ -242,6 +319,7 @@ export default function App() {
           onSave={handleSave}
           onCancel={() => { setFormState(null); setTransitionPhase("idle"); hideBackdrop(); }}
           onDelete={handleDelete}
+          onBackToChooser={!formState?.id ? handleBackToChooser : undefined}
           recipes={recipes}
           isEntering={transitionPhase === "form-enter"}
         />

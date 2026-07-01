@@ -38,7 +38,6 @@ export const UNITS = [
   { value: "l",      label: "l"      },
   { value: "whole",  label: "whole"  },
   { value: "pinch",  label: "pinch"  },
-  { value: "recipe", label: "recipe" }, // legacy recipe-link ingredients (display only)
   { value: "",       label: "none"   },
 ];
 
@@ -142,8 +141,13 @@ export function stepsForDisplay(steps) {
 
 // ── Ingredient normalization ──────────────────────────────────────────────────
 // Ensures every ingredient has a type field (migrates legacy shape that had none).
+// Also migrates the old "recipe-link" ingredient shape (a part referencing
+// another recipe by name) into a plain ingredient — recipes are only ever
+// broken into parts now, never composed of other recipes.
 export function normalizeIngredient(ing) {
-  if (ing.type === "recipe") return ing;
+  if (ing.type === "recipe") {
+    return { type: "ingredient", amount: ing.amount ?? 1, unit: "whole", name: ing.recipeName || "" };
+  }
   return { type: "ingredient", ...ing };
 }
 
@@ -239,10 +243,6 @@ export function formatAmount(amount, multiplier = 1) {
 }
 
 export function formatIngredient(ing, multiplier = 1) {
-  if (ing.type === "recipe") {
-    const amt = formatAmount(ing.amount, multiplier);
-    return `${amt} recipe ${ing.recipeName}`;
-  }
   const amt = formatAmount(ing.amount, multiplier);
   if (ing.unit === "pinch")              return `pinch of ${ing.name}`;
   if (!ing.unit || ing.unit === "whole") return `${amt} ${ing.name}`;

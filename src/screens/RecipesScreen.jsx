@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { RecipeCard, DetailSheet } from "../components/recipe";
-import { CATEGORY_OPTIONS }        from "../models/recipe";
+import { RecipeCard }       from "../components/recipe";
+import { CATEGORY_OPTIONS } from "../models/recipe";
 
+// Note: the recipe detail sheet lives at the App.js level, not here — it needs
+// to render outside this screen's own animated wrapper so its slide-up isn't
+// affected by (or tangled with) the bottom-nav screen-switch animation. See
+// App.js's <DetailSheet> usage.
 export default function RecipesScreen({
-  recipes, onSelectRecipe, selectedRecipe, onCloseDetail,
-  onEdit, onDelete, onToggleFavorite, onAddToShopping, onNewRecipe,
-  onNavigateRecipe,
+  recipes, onSelectRecipe, selectedRecipe, onToggleFavorite, onNewRecipe,
   initialFilter = "All",
 }) {
   const [search,         setSearch]         = useState("");
@@ -134,17 +136,6 @@ export default function RecipesScreen({
           )}
         </div>
       </div>
-
-      <DetailSheet
-        recipe={selectedRecipe}
-        onClose={onCloseDetail}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        onToggleFavorite={onToggleFavorite}
-        onAddToShopping={onAddToShopping}
-        onNavigateRecipe={onNavigateRecipe}
-        recipes={recipes}
-      />
 
       <style>{`.recipes-search::placeholder { color: rgba(255,255,255,0.35); }`}</style>
     </>

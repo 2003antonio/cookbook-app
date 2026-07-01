@@ -23,9 +23,9 @@ export function IngredientsTab({
                 value={ing.amount} onChange={e => setIng(ing.id, "amount", e.target.value)} placeholder="1"
               />
               <select style={{ ...inputStyle(), width: 80, cursor: "pointer" }} value={ing.unit} onChange={e => setIng(ing.id, "unit", e.target.value)}>
-                {UNITS.filter(u => u.value !== "recipe").map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+                {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
               </select>
-              <input style={{ ...inputStyle(), flex: 1 }} value={ing.name || ing.recipeName || ""} onChange={e => setIng(ing.id, "name", e.target.value)} placeholder="ingredient" />
+              <input style={{ ...inputStyle(), flex: 1 }} value={ing.name || ""} onChange={e => setIng(ing.id, "name", e.target.value)} placeholder="ingredient" />
               <button onClick={() => removeIng(ing.id)} disabled={!canRemove}
                 style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)", color: "var(--ink-soft)", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: canRemove ? 1 : 0.3 }}>✕</button>
             </div>
