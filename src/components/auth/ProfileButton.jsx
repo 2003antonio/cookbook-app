@@ -122,7 +122,7 @@ export default function ProfileButton({ session, loading, theme, toggleTheme }) 
             onClick={() => { setMenuOpen(false); supabase.auth.signOut(); }}
             style={{
               width: "100%", textAlign: "left", padding: "11px 14px",
-              fontFamily: "var(--font-body)", fontSize: 13.5, fontWeight: 500, color: "#DC2626",
+              fontFamily: "var(--font-body)", fontSize: 13.5, fontWeight: 500, color: "var(--error)",
             }}
           >
             Sign out

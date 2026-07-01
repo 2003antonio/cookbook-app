@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { IconButton }   from "../ui/IconButton";
+import { ModalOverlay } from "../ui/ModalOverlay";
 
 // True on phone-width screens. Drives the compact, descaled chooser layout.
 function useIsPhone() {
@@ -20,7 +22,6 @@ function useIsPhone() {
 // Lets them pick a simple single-part recipe vs. a multi-part one, which
 // determines how many components RecipeForm starts with.
 export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel, isExiting = false }) {
-  let _mouseDownOnBackdrop = false;
   const isPhone = useIsPhone();
 
   // On phones the whole panel is scaled down as one unit (see PHONE_ZOOM below)
@@ -108,15 +109,9 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel,
   };
 
   return (
-    // Transparent click-catcher — backdrop is rendered by App.js
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 200,
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-      }}
-      onMouseDown={e => { _mouseDownOnBackdrop = e.target === e.currentTarget; }}
-      onClick={e => { if (e.target === e.currentTarget && _mouseDownOnBackdrop) onCancel(); }}
-    >
+    // Backdrop is rendered by App.js and stays alive across the whole
+    // TypeChooser → loader → RecipeForm flow — this overlay stays transparent.
+    <ModalOverlay onClose={onCancel} showBackdrop={false}>
       <div
         onClick={e => e.stopPropagation()}
         className={isExiting ? "modal-exiting" : undefined}
@@ -134,16 +129,12 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel,
         }}>
           {/* Header */}
           <div style={{ textAlign: "center", position: "relative" }}>
-            <button
-              onClick={onCancel}
-              style={{
-                position: "absolute", top: -4, right: -4, width: 30, height: 30, borderRadius: "50%",
-                background: "var(--surface)", color: "var(--ink-soft)", fontSize: 13, display: "flex",
-                alignItems: "center", justifyContent: "center", transition: "background 0.15s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--surface-2)"}
-              onMouseLeave={e => e.currentTarget.style.background = "var(--surface)"}
-            >✕</button>
+            <IconButton
+              onClick={onCancel} ariaLabel="Close"
+              size={30} background="var(--surface)" hoverBackground="var(--surface-2)"
+              color="var(--ink-soft)" fontSize={13}
+              style={{ position: "absolute", top: -4, right: -4 }}
+            >✕</IconButton>
             <h2 style={{ fontFamily: "var(--font-display)", fontSize: 21, fontWeight: 600, color: "var(--ink)", padding: "0 30px" }}>
               Let's make a new recipe!
             </h2>
@@ -219,6 +210,6 @@ export function RecipeTypeChooser({ onChooseSimple, onChooseMultiPart, onCancel,
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

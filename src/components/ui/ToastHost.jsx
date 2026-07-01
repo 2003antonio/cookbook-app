@@ -50,7 +50,7 @@ export function ToastHost() {
           animation: `${t.leaving ? "toastOut" : "toastIn"} ${t.leaving ? TOAST_EXIT_MS : 220}ms ease forwards`,
         }}>
           <span style={{
-            width: 20, height: 20, borderRadius: "50%", background: "#22c55e", flexShrink: 0,
+            width: 20, height: 20, borderRadius: "50%", background: "var(--success)", flexShrink: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <svg width="11" height="8" viewBox="0 0 11 8" fill="none">

@@ -39,7 +39,7 @@ export function RecipeCard({ recipe, onSelect, active, onToggleFavorite }) {
             style={{
               position: "absolute", top: 10, right: 10, zIndex: 2,
               fontSize: 16, background: "none", border: "none",
-              cursor: "pointer", color: "red",
+              cursor: "pointer", color: "var(--error)",
             }}
           >♥</button>
         )}

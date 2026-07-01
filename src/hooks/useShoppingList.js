@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase }                         from "../services/supabaseClient";
 import { formatIngredient, allIngredients } from "../models/recipe";
 import { rowToItem }                        from "../services/shoppingService";
+import { stripNullBytes }                   from "../utils/sanitize";
+import { showToast }                        from "../components/ui/ToastHost";
+
+const SAVE_FAILED_MSG = "Couldn't save — check your connection and try again";
 
 // ── useShoppingList ───────────────────────────────────────────────────────────
 // Manages the shopping list. Signed-out users get an empty list (nothing
@@ -44,11 +48,12 @@ export function useShoppingList(userId) {
     if (!userId) return;
 
     supabase.from("shopping_items")
-      .insert({ id, user_id: userId, text: item.text, checked: false })
+      .insert(stripNullBytes({ id, user_id: userId, text: item.text, checked: false }))
       .then(({ error }) => {
         if (error) {
           console.error("Failed to add shopping item:", error.message);
           setItems(prev => prev.filter(i => i.id !== id));
+          showToast(SAVE_FAILED_MSG);
         }
       });
   }, [userId]);
@@ -68,6 +73,7 @@ export function useShoppingList(userId) {
         if (error) {
           console.error("Failed to update shopping item:", error.message);
           setItems(prev => prev.map(i => i.id === id ? { ...i, checked: !nextChecked } : i));
+          showToast(SAVE_FAILED_MSG);
         }
       });
   }, [userId]);
@@ -86,22 +92,27 @@ export function useShoppingList(userId) {
         if (error) {
           console.error("Failed to remove shopping item:", error.message);
           if (removed) setItems(prev => [...prev, removed]);
+          showToast(SAVE_FAILED_MSG);
         }
       });
   }, [userId]);
 
   const clearChecked = useCallback(() => {
-    let removedIds = [];
+    let removed = [];
     setItems(prev => {
-      removedIds = prev.filter(i => i.checked).map(i => i.id);
+      removed = prev.filter(i => i.checked);
       return prev.filter(i => !i.checked);
     });
 
-    if (!userId || removedIds.length === 0) return;
+    if (!userId || removed.length === 0) return;
 
-    supabase.from("shopping_items").delete().in("id", removedIds)
+    supabase.from("shopping_items").delete().in("id", removed.map(i => i.id))
       .then(({ error }) => {
-        if (error) console.error("Failed to clear checked items:", error.message);
+        if (error) {
+          console.error("Failed to clear checked items:", error.message);
+          setItems(prev => [...prev, ...removed]);
+          showToast(SAVE_FAILED_MSG);
+        }
       });
   }, [userId]);
 
@@ -121,7 +132,7 @@ export function useShoppingList(userId) {
     if (!userId) return;
 
     supabase.from("shopping_items")
-      .insert(newItems.map(i => ({
+      .insert(newItems.map(i => stripNullBytes({
         id:          i.id,
         user_id:     userId,
         text:        i.text,
@@ -133,6 +144,7 @@ export function useShoppingList(userId) {
           console.error("Failed to add ingredients to shopping list:", error.message);
           const ids = new Set(newItems.map(i => i.id));
           setItems(prev => prev.filter(i => !ids.has(i.id)));
+          showToast(SAVE_FAILED_MSG);
         }
       });
   }, [userId]);

@@ -194,7 +194,7 @@ function ShopItem({ item, onToggle, onRemove }) {
         display: "flex", alignItems: "center", justifyContent: "center",
         transition: "all 0.15s", opacity: 0.5,
       }}
-        onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#ef4444"; }}
+        onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--error)"; }}
         onMouseLeave={e => { e.currentTarget.style.opacity = "0.5"; e.currentTarget.style.color = "var(--ink-faint)"; }}
       >✕</button>
     </div>

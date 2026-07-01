@@ -15,10 +15,12 @@
   --night:      #18181B;
 
   /* Status */
-  --success:     #15803D;
-  --success-bg:  rgba(21,128,61,0.08);
-  --error:       #B42318;
-  --error-bg:    rgba(180,35,24,0.08);
+  --success:      #15803D;
+  --success-bg:   rgba(21,128,61,0.08);
+  --success-tint: rgba(21,128,61,0.16);   /* stronger fill for pill buttons */
+  --error:        #B42318;
+  --error-bg:     rgba(180,35,24,0.08);
+  --error-tint:   rgba(180,35,24,0.14);   /* stronger fill for pill buttons */
 
   /* Surface tokens (card/sheet/nav backgrounds) */
   --card-bg:    #FFFFFF;
@@ -66,10 +68,12 @@
   --border:     #3A3A3E;
   --fire-dim:   rgba(232,98,26,0.18);
   --fire-glow:  rgba(232,98,26,0.12);
-  --success:     #4ADE80;
-  --success-bg:  rgba(74,222,128,0.14);
-  --error:       #F87171;
-  --error-bg:    rgba(248,113,113,0.14);
+  --success:      #4ADE80;
+  --success-bg:   rgba(74,222,128,0.14);
+  --success-tint: rgba(74,222,128,0.22);
+  --error:        #F87171;
+  --error-bg:     rgba(248,113,113,0.14);
+  --error-tint:   rgba(248,113,113,0.22);
   --card-bg:    #1C1C1F;   /* sheets, modals, cards */
   --nav-bg:     #18181B;   /* bottom nav — deepest */
   --shadow-sm:  0 1px 3px rgba(0,0,0,0.4),  0 1px 2px rgba(0,0,0,0.25);

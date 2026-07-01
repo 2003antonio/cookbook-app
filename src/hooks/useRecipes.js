@@ -4,6 +4,9 @@ import { SEED_RECIPES }                     from "../data/seeds";
 import { recipeToRow, rowToRecipe }         from "../services/recipeService";
 import { uploadRecipeImage, deleteRecipeImage, isDataUrl } from "../services/storageService";
 import { normalizeRecipe }                  from "../models/recipe";
+import { showToast }                        from "../components/ui/ToastHost";
+
+const SAVE_FAILED_MSG = "Couldn't save — check your connection and try again";
 
 // Seeds are authored in the legacy `components` shape — migrate to `parts` once
 // up front so every recipe in state has a consistent shape.
@@ -65,6 +68,7 @@ export function useRecipes(userId) {
         if (error) {
           console.error("Failed to save recipe:", error.message);
           setRecipes(prev => prev.filter(x => x.id !== id));
+          showToast(SAVE_FAILED_MSG);
         }
       })();
     }
@@ -73,9 +77,12 @@ export function useRecipes(userId) {
   }, [userId]);
 
   const updateRecipe = useCallback((id, updates) => {
-    setRecipes(prev =>
-      prev.map(r => r.id === id ? { ...r, ...updates, updatedAt: Date.now() } : r)
-    );
+    let previous;
+    setRecipes(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      previous = r;
+      return { ...r, ...updates, updatedAt: Date.now() };
+    }));
 
     if (!userId) return;
 
@@ -94,7 +101,11 @@ export function useRecipes(userId) {
         .from("recipes")
         .update({ ...recipeToRow(next), updated_at: new Date().toISOString() })
         .eq("id", id);
-      if (error) console.error("Failed to update recipe:", error.message);
+      if (error) {
+        console.error("Failed to update recipe:", error.message);
+        if (previous) setRecipes(prev => prev.map(r => r.id === id ? previous : r));
+        showToast(SAVE_FAILED_MSG);
+      }
     })();
   }, [userId]);
 
@@ -111,6 +122,7 @@ export function useRecipes(userId) {
       if (error) {
         console.error("Failed to delete recipe:", error.message);
         if (removed) setRecipes(prev => [removed, ...prev]);
+        showToast(SAVE_FAILED_MSG);
       } else {
         deleteRecipeImage(userId, id);  // best-effort cleanup of the stored photo
       }
@@ -131,6 +143,7 @@ export function useRecipes(userId) {
       if (error) {
         console.error("Failed to update favorite:", error.message);
         setRecipes(prev => prev.map(r => r.id === id ? { ...r, favorite: !nextFavorite } : r));
+        showToast(SAVE_FAILED_MSG);
       }
     });
   }, [userId]);

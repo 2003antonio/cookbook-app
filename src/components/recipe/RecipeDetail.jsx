@@ -1,27 +1,9 @@
 import { useState, useRef } from "react";
-import { StarRating } from "../ui/StarRating";
-import { StepList }   from "../ui/StepList";
-import { showToast }  from "../ui/ToastHost";
+import { StarRating }  from "../ui/StarRating";
+import { StepList }    from "../ui/StepList";
+import { showToast }   from "../ui/ToastHost";
+import { IconButton }  from "../ui/IconButton";
 import { formatTime, formatIngredient } from "../../models/recipe";
-
-// ── Small helper ─────────────────────────────────────────────────────────────
-function HeroBtn({ children, onClick, title }) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      style={{
-        width: 34, height: 34, borderRadius: "50%",
-        background: "rgba(255,255,255,0.22)", backdropFilter: "blur(4px)",
-        color: "white", fontSize: 14,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        transition: "background 0.15s",
-      }}
-      onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.38)"}
-      onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.22)"}
-    >{children}</button>
-  );
-}
 
 // ── Servings stepper ──────────────────────────────────────────────────────────
 function ServingsStepper({ value, onChange, onReset, showReset }) {
@@ -219,13 +201,13 @@ function IngredientChecklist({ parts, multiplier, checkedMap, onToggle, onClearA
             {checkedCount} of {totalCount} ready
           </span>
           {checkedCount === totalCount && totalCount > 0 && (
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: "#22c55e" }}>All set! ✓</span>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--success)" }}>All set! ✓</span>
           )}
         </div>
         <div style={{ height: 4, borderRadius: 999, background: "var(--border)", overflow: "hidden" }}>
           <div style={{
             height: "100%", borderRadius: 999,
-            background: checkedCount === totalCount && totalCount > 0 ? "#22c55e" : "var(--fire)",
+            background: checkedCount === totalCount && totalCount > 0 ? "var(--success)" : "var(--fire)",
             width: totalCount > 0 ? `${(checkedCount / totalCount) * 100}%` : "0%",
             transition: "width 0.3s ease, background 0.3s ease",
           }} />
@@ -360,11 +342,24 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
         padding: "48px 24px 28px", position: "relative", flexShrink: 0,
       }}>
         <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8 }}>
-          <HeroBtn onClick={handleToggleFavorite} title={isFavorite ? "Unfavorite" : "Favorite"}>
+          <IconButton
+            onClick={handleToggleFavorite}
+            title={isFavorite ? "Unfavorite" : "Favorite"}
+            background="rgba(255,255,255,0.22)" hoverBackground="rgba(255,255,255,0.38)"
+            color="white" backdropBlur
+          >
             {isFavorite ? "♥" : "♡"}
-          </HeroBtn>
-          <HeroBtn onClick={() => onEdit(recipe)} title="Edit">✏️</HeroBtn>
-          <HeroBtn onClick={handleClose} title="Close">✕</HeroBtn>
+          </IconButton>
+          <IconButton
+            onClick={() => onEdit(recipe)} title="Edit"
+            background="rgba(255,255,255,0.22)" hoverBackground="rgba(255,255,255,0.38)"
+            color="white" backdropBlur
+          >✏️</IconButton>
+          <IconButton
+            onClick={handleClose} title="Close"
+            background="rgba(255,255,255,0.22)" hoverBackground="rgba(255,255,255,0.38)"
+            color="white" backdropBlur
+          >✕</IconButton>
         </div>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", marginBottom: 6 }}>
           {recipe.category}
@@ -428,7 +423,7 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
           onClick={handleAddToShopping}
           style={{
             width: "100%", padding: "8px", borderRadius: "var(--r-md)",
-            background: addedToast ? "#22c55e" : "var(--fire)", color: "white",
+            background: addedToast ? "var(--success)" : "var(--fire)", color: "white",
             fontSize: 13.5, fontWeight: 600, transition: "background 0.3s",
           }}
         >
@@ -439,7 +434,7 @@ export function RecipeDetail({ recipe, onClose, onEdit, onDelete, onToggleFavori
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => { const name = recipe.name; onDelete(recipe.id); handleClose(); showToast(`"${name}" successfully deleted`); }}
-              style={{ flex: 1, padding: "5.5px", background: "#ef4444", color: "white", borderRadius: "var(--r-sm)", fontSize: 13, fontWeight: 600 }}
+              style={{ flex: 1, padding: "5.5px", background: "var(--error)", color: "white", borderRadius: "var(--r-sm)", fontSize: 13, fontWeight: 600 }}
             >Yes, delete</button>
             <button
               onClick={() => setConfirmDelete(false)}

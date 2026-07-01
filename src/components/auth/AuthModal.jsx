@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../../services/supabaseClient";
+import { IconButton }   from "../ui/IconButton";
+import { ModalOverlay } from "../ui/ModalOverlay";
 
 // ── Friendly error messages ───────────────────────────────────────────────────
 function parseAuthError(message) {
@@ -24,7 +26,6 @@ function parseAuthError(message) {
 // ── Modes: "signin" | "signup" | "forgot" | "signup-done" ────────────────────
 export default function AuthModal({ onClose }) {
   const [mode,     setMode]     = useState("signin");
-  const mouseDownOnBackdrop = { current: false };
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
   const [loading,  setLoading]  = useState(false);
@@ -84,15 +85,7 @@ export default function AuthModal({ onClose }) {
   const { heading, sub } = titles[mode];
 
   return (
-    <div
-      style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-        backdropFilter: "blur(3px)", zIndex: 200,
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-      }}
-      onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
-      onClick={(e) => { if (e.target === e.currentTarget && mouseDownOnBackdrop.current) onClose(); }}
-    >
+    <ModalOverlay onClose={onClose}>
       <style>{`
         .auth-input:focus { outline: 2px solid var(--fire); outline-offset: 1px; }
         .auth-submit:disabled { opacity: 0.6; cursor: default; }
@@ -116,11 +109,11 @@ export default function AuthModal({ onClose }) {
               {heading}
             </h2>
           </div>
-          <button onClick={onClose} style={{
-            width: 30, height: 30, borderRadius: "50%", background: "var(--surface)",
-            fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0, marginLeft: 12,
-          }}>✕</button>
+          <IconButton
+            onClick={onClose} ariaLabel="Close"
+            size={30} background="var(--surface)" fontSize={13}
+            style={{ marginLeft: 12 }}
+          >✕</IconButton>
         </div>
 
         {sub && (
@@ -221,7 +214,7 @@ export default function AuthModal({ onClose }) {
           </button>
         )}
       </div>
-    </div>
+    </ModalOverlay>
   );
 }
 

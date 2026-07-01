@@ -19,6 +19,7 @@
 //   (the image bytes live in Storage — see storageService.js for bucket setup)
 
 import { normalizeRecipe } from "../models/recipe";
+import { stripNullBytes }  from "../utils/sanitize";
 
 const RECIPE_FIELD_MAP = {
   name:         "name",
@@ -36,12 +37,14 @@ const RECIPE_FIELD_MAP = {
 };
 
 // Partial-update safe: only keys present on `recipe` are included in the row.
+// stripNullBytes guards against Postgres rejecting the whole write over a NUL
+// byte hiding in pasted text (name, notes, tags, or nested ingredient/step text).
 export function recipeToRow(recipe) {
   const row = {};
   for (const [jsKey, dbKey] of Object.entries(RECIPE_FIELD_MAP)) {
     if (recipe[jsKey] !== undefined) row[dbKey] = recipe[jsKey];
   }
-  return row;
+  return stripNullBytes(row);
 }
 
 export function rowToRecipe(row) {

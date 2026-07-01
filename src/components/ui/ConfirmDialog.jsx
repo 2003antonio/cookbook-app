@@ -24,11 +24,11 @@ export function ConfirmDialog({ icon, iconBg, title, subtitle, cancelLabel, conf
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={onCancel}
-            style={{ flex: 1, padding: "9px 0", background: "#FBDADA", color: "#B42318", borderRadius: "var(--r-full)", fontSize: 13, fontWeight: 600 }}
+            style={{ flex: 1, padding: "9px 0", background: "var(--error-tint)", color: "var(--error)", borderRadius: "var(--r-full)", fontSize: 13, fontWeight: 600 }}
           >{cancelLabel}</button>
           <button
             onClick={onConfirm}
-            style={{ flex: 1, padding: "9px 0", background: "#C8EAC4", color: "#15803D", borderRadius: "var(--r-full)", fontSize: 13, fontWeight: 600 }}
+            style={{ flex: 1, padding: "9px 0", background: "var(--success-tint)", color: "var(--success)", borderRadius: "var(--r-full)", fontSize: 13, fontWeight: 600 }}
           >{confirmLabel}</button>
         </div>
       </div>
